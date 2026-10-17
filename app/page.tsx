@@ -425,6 +425,16 @@ export default function HomePage() {
   const handleAnswerSubmit = async (answerVal: string): Promise<AnswerResponse | null> => {
     if (!currentActivity) return null;
 
+    // If currently displaying the Game Menu selection card, clicking a game button launches that game!
+    if (currentActivity.activityId === 'game-menu') {
+      handleSendMessage(answerVal);
+      return {
+        correct: true,
+        correctAnswer: answerVal,
+        feedback: "Let's play!",
+      };
+    }
+
     const activeSessionId =
       sessionId ||
       (typeof window !== 'undefined' ? localStorage.getItem('littletalk_session_id') : null) ||

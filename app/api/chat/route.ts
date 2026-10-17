@@ -482,97 +482,112 @@ export async function POST(req: Request) {
         ];
       }
     } else if (targetMode === 'ENGAGEMENT') {
-      // Pick a game activity based on topicHint or current topic
-      let gameTopic: LearningTopic = (topicHint as LearningTopic) || session.currentTopic || 'animals';
+      const categoryQuickReplies: QuickReply[] = [
+        { id: 'qr-game-animals', label: '🐾 Animal Quiz', value: 'play animal game' },
+        { id: 'qr-game-colors', label: '🎨 Color Match', value: 'play color game' },
+        { id: 'qr-game-numbers', label: '🔢 Star Counter', value: 'play number game' },
+        { id: 'qr-game-fruits', label: '🍎 Fruit Pop', value: 'play fruit game' },
+        { id: 'qr-game-words', label: '🪑 Word Hunt', value: 'play word game' },
+      ];
 
-      // Explicitly retrieve activities for this game topic
-      const topicActivities = getActivitiesByTopic(gameTopic);
-      let activity: Activity | undefined;
+      const isGenericGameRequest =
+        /^(let's play a game|play game|play a game|game|games|game time)$/i.test(message.trim()) ||
+        (!topicHint && /play|game/i.test(message));
 
-      // If already in an activity for this topic and no new topic requested, continue it
-      if (session.currentActivityId && !topicHint) {
-        const currentAct = getActivityById(session.currentActivityId);
-        if (currentAct && currentAct.topic === gameTopic) {
-          activity = currentAct;
-        }
-      }
+      // 1. If child requested "Play Game" generally without choosing a topic yet:
+      // Show game options menu first!
+      if (isGenericGameRequest || !topicHint) {
+        session.currentActivityId = undefined;
+        session.currentQuestionId = undefined;
 
-      if (!activity) {
-        activity =
-          topicActivities.find(
-            (a) => a.level === session.currentLevel && !session.completedActivities.includes(a.id)
-          ) ||
-          topicActivities.find((a) => a.level === session.currentLevel) ||
-          topicActivities[0];
-      }
-
-      if (!activity) {
-        activity = getActivityById('l1-animals-1') || getActivityById('l1-colors-1');
-      }
-
-      if (activity) {
-        session.currentActivityId = activity.id;
-        session.currentTopic = activity.topic;
-
-        let unansweredQuestion = activity.questions.find(
-          (q) => !session?.answeredQuestionIds.includes(q.id)
-        );
-
-        if (!unansweredQuestion) {
-          // Recycle questions for continuous fun game play
-          activity.questions.forEach((q) => {
-            const idx = session.answeredQuestionIds.indexOf(q.id);
-            if (idx > -1) session.answeredQuestionIds.splice(idx, 1);
-          });
-          unansweredQuestion = activity.questions[0];
-        }
-
-        session.currentQuestionId = unansweredQuestion.id;
-
-        const options = unansweredQuestion.options?.map((opt, idx) => ({
-          id: `opt-${idx}`,
-          label: opt,
-          value: opt,
-        })) || [];
+        reply = "Yay, game time! 🎮 What game would you like to play? Choose one below to start the fun!";
+        quickReplies = categoryQuickReplies;
 
         activityDisplay = {
-          activityId: activity.id,
-          questionId: unansweredQuestion.id,
-          question: `🎮 ${unansweredQuestion.text}`,
-          imageHint: unansweredQuestion.imageHint,
-          options,
-          topic: activity.topic,
+          activityId: 'game-menu',
+          questionId: 'choose-game',
+          question: '🎮 Which fun game would you like to play?',
+          imageHint: '🎮',
+          options: categoryQuickReplies.map((c) => ({
+            id: c.id,
+            label: c.label,
+            value: c.value,
+          })),
+          topic: 'conversation',
           level: session.currentLevel,
-          hint: unansweredQuestion.hint,
+          hint: 'Tap any game category below to begin playing!',
         };
-
-        const topicName = TOPIC_LABELS[activity.topic] || activity.topic;
-        reply = `Game On! 🎮 Let's play the ${topicName} game! ${unansweredQuestion.text}`;
-
-        const answerQuickReplies: QuickReply[] = options.map((opt) => ({
-          id: opt.id,
-          label: opt.label,
-          value: opt.value,
-        }));
-
-        const categoryQuickReplies: QuickReply[] = [
-          { id: 'qr-game-animals', label: '🐾 Animal Quiz', value: 'play animal game' },
-          { id: 'qr-game-colors', label: '🎨 Color Match', value: 'play color game' },
-          { id: 'qr-game-numbers', label: '🔢 Star Counter', value: 'play number game' },
-          { id: 'qr-game-fruits', label: '🍎 Fruit Pop', value: 'play fruit game' },
-          { id: 'qr-game-words', label: '🪑 Word Hunt', value: 'play word game' },
-        ];
-
-        quickReplies = [...answerQuickReplies, ...categoryQuickReplies];
       } else {
-        reply = "Let's play! 🎮 Choose a game category below!";
-        quickReplies = [
-          { id: 'qr-game-animals', label: '🐾 Animal Quiz', value: 'play animal game' },
-          { id: 'qr-game-colors', label: '🎨 Color Match', value: 'play color game' },
-          { id: 'qr-game-numbers', label: '🔢 Star Counter', value: 'play number game' },
-          { id: 'qr-game-fruits', label: '🍎 Fruit Pop', value: 'play fruit game' },
-          { id: 'qr-game-words', label: '🪑 Word Hunt', value: 'play word game' },
-        ];
+        // 2. A specific game topic was chosen: start that game!
+        let gameTopic: LearningTopic = (topicHint as LearningTopic) || 'animals';
+
+        // Explicitly retrieve activities for this game topic
+        const topicActivities = getActivitiesByTopic(gameTopic);
+        let activity: Activity | undefined;
+
+        if (!activity) {
+          activity =
+            topicActivities.find(
+              (a) => a.level === session.currentLevel && !session.completedActivities.includes(a.id)
+            ) ||
+            topicActivities.find((a) => a.level === session.currentLevel) ||
+            topicActivities[0];
+        }
+
+        if (!activity) {
+          activity = getActivityById('l1-animals-1') || getActivityById('l1-colors-1');
+        }
+
+        if (activity) {
+          session.currentActivityId = activity.id;
+          session.currentTopic = activity.topic;
+
+          let unansweredQuestion = activity.questions.find(
+            (q) => !session?.answeredQuestionIds.includes(q.id)
+          );
+
+          if (!unansweredQuestion) {
+            // Recycle questions for continuous fun game play
+            activity.questions.forEach((q) => {
+              const idx = session.answeredQuestionIds.indexOf(q.id);
+              if (idx > -1) session.answeredQuestionIds.splice(idx, 1);
+            });
+            unansweredQuestion = activity.questions[0];
+          }
+
+          session.currentQuestionId = unansweredQuestion.id;
+
+          const options = unansweredQuestion.options?.map((opt, idx) => ({
+            id: `opt-${idx}`,
+            label: opt,
+            value: opt,
+          })) || [];
+
+          activityDisplay = {
+            activityId: activity.id,
+            questionId: unansweredQuestion.id,
+            question: `🎮 ${unansweredQuestion.text}`,
+            imageHint: unansweredQuestion.imageHint,
+            options,
+            topic: activity.topic,
+            level: session.currentLevel,
+            hint: unansweredQuestion.hint,
+          };
+
+          const topicName = TOPIC_LABELS[activity.topic] || activity.topic;
+          reply = `Game On! 🎮 Let's play the ${topicName} game! ${unansweredQuestion.text}`;
+
+          const answerQuickReplies: QuickReply[] = options.map((opt) => ({
+            id: opt.id,
+            label: opt.label,
+            value: opt.value,
+          }));
+
+          quickReplies = [...answerQuickReplies, ...categoryQuickReplies];
+        } else {
+          reply = "Let's play! 🎮 Choose a game category below!";
+          quickReplies = categoryQuickReplies;
+        }
       }
     } else {
       // CONVERSATION mode
