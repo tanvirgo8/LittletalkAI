@@ -22,6 +22,21 @@ import { Sparkles, ArrowRight, Award } from 'lucide-react';
 
 import { soundFX } from '@/lib/sound-effects';
 
+const DEFAULT_ACTIVITY: ActivityDisplay = {
+  activityId: 'l1-colors-1',
+  questionId: 'l1-c1-q1',
+  question: 'What color is the banana? 🍌',
+  imageHint: '🍌',
+  options: [
+    { id: 'opt-0', label: 'Yellow', value: 'Yellow' },
+    { id: 'opt-1', label: 'Blue', value: 'Blue' },
+    { id: 'opt-2', label: 'Green', value: 'Green' },
+  ],
+  topic: 'colors',
+  level: 1,
+  hint: 'Bananas are bright and sunny!',
+};
+
 export default function HomePage() {
   // Session & Profile Identifiers
   const [sessionId, setSessionId] = useState<string>('');
@@ -45,7 +60,7 @@ export default function HomePage() {
   // Conversational State
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
-  const [currentActivity, setCurrentActivity] = useState<ActivityDisplay | null>(null);
+  const [currentActivity, setCurrentActivity] = useState<ActivityDisplay | null>(DEFAULT_ACTIVITY);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [lastLatencyMs, setLastLatencyMs] = useState<number | null>(null);
 
@@ -143,7 +158,7 @@ export default function HomePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: 'Hello Lumi! I want to learn English!',
+          message: 'Hello Lumi! Teach me words!',
           sessionId: sId,
           profileId: pId,
         }),
@@ -289,7 +304,7 @@ export default function HomePage() {
 
       // Confetti & Sound Celebration
       if (data.correct) {
-        soundFX.playCorrectChime();
+        try { soundFX.playCorrectChime(); } catch {}
         setMascotState('cheering');
         try {
           confetti({
@@ -302,7 +317,7 @@ export default function HomePage() {
           // ignore confetti if unsupported
         }
       } else {
-        soundFX.playGentleTryAgain();
+        try { soundFX.playGentleTryAgain(); } catch {}
       }
 
       // Update stars and level
@@ -311,7 +326,7 @@ export default function HomePage() {
       }
 
       if (data.levelUp) {
-        soundFX.playLevelUpFanfare();
+        try { soundFX.playLevelUpFanfare(); } catch {}
         setLevel(data.levelUp.toLevel);
         setLevelUpMessage(data.levelUp.message);
         try {
@@ -341,14 +356,14 @@ export default function HomePage() {
 
   // Mode Selection
   const handleSelectMode = (newMode: ConversationMode, prompt: string) => {
-    soundFX.playPopSound();
+    try { soundFX.playPopSound(); } catch {}
     setMode(newMode);
     handleSendMessage(prompt);
   };
 
   // Toggle Voice Profile (10-Year-Old Kid vs Baby Voice)
   const handleToggleVoiceProfile = () => {
-    soundFX.playPopSound();
+    try { soundFX.playPopSound(); } catch {}
     const next = voiceProfile === 'kid' ? 'baby' : 'kid';
     setVoiceProfile(next);
     speakText(
@@ -406,7 +421,7 @@ export default function HomePage() {
         mode={mode}
         audioEnabled={audioEnabled}
         onToggleAudio={() => {
-          soundFX.playPopSound();
+          try { soundFX.playPopSound(); } catch {}
           setAudioEnabled((prev) => !prev);
         }}
         voiceProfile={voiceProfile}
@@ -415,7 +430,7 @@ export default function HomePage() {
       />
 
       {/* Main Learning Hub */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-5 flex flex-col gap-3 min-h-0">
+      <main className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-5 flex flex-col gap-3">
         {/* Child Mode Quick Selector */}
         <ModeSelector
           currentMode={mode}
@@ -424,9 +439,9 @@ export default function HomePage() {
         />
 
         {/* Dynamic Dual-Pane Learning Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0 lg:h-[calc(100vh-210px)] lg:max-h-[720px] lg:min-h-[480px]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 items-start">
           {/* Left Panel: Active Activity or Mascot Spotlight */}
-          <div className="lg:col-span-7 flex flex-col justify-center min-h-0">
+          <div className="lg:col-span-7 flex flex-col justify-center">
             {mode === 'LEARNING' && currentActivity ? (
               <ActivityCard
                 activity={currentActivity}
@@ -478,7 +493,7 @@ export default function HomePage() {
           </div>
 
           {/* Right Panel: Conversational Chat Interface */}
-          <div className="lg:col-span-5 flex flex-col h-[500px] lg:h-full min-h-0 overflow-hidden">
+          <div className="lg:col-span-5 flex flex-col h-[520px] lg:h-[580px] overflow-hidden">
             <ChatInterface
               turns={turns}
               quickReplies={quickReplies}
