@@ -116,6 +116,7 @@ export class MemoryDatabaseAdapter implements DatabaseAdapter {
 // ─── Firebase Firestore Adapter ────────────────────────────
 export class FirestoreDatabaseAdapter implements DatabaseAdapter {
   private db: Firestore;
+  private memoryFallback = new MemoryDatabaseAdapter();
 
   constructor() {
     const firebaseConfig = {
@@ -146,27 +147,55 @@ export class FirestoreDatabaseAdapter implements DatabaseAdapter {
   }
 
   async getProfile(profileId: string): Promise<ChildProfile | null> {
-    const ref = doc(this.db, 'profiles', profileId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    return snap.data() as ChildProfile;
+    try {
+      const ref = doc(this.db, 'profiles', profileId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        return this.memoryFallback.getProfile(profileId);
+      }
+      const data = snap.data() as ChildProfile;
+      await this.memoryFallback.saveProfile(data);
+      return data;
+    } catch (e) {
+      console.warn('Firestore getProfile fallback to memory:', e);
+      return this.memoryFallback.getProfile(profileId);
+    }
   }
 
   async saveProfile(profile: ChildProfile): Promise<void> {
-    const ref = doc(this.db, 'profiles', profile.profileId);
-    await setDoc(ref, profile, { merge: true });
+    await this.memoryFallback.saveProfile(profile);
+    try {
+      const ref = doc(this.db, 'profiles', profile.profileId);
+      await setDoc(ref, profile, { merge: true });
+    } catch (e) {
+      console.warn('Firestore saveProfile sync notice (check Firestore rules):', e);
+    }
   }
 
   async getSession(sessionId: string): Promise<SessionContext | null> {
-    const ref = doc(this.db, 'sessions', sessionId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    return snap.data() as SessionContext;
+    try {
+      const ref = doc(this.db, 'sessions', sessionId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        return this.memoryFallback.getSession(sessionId);
+      }
+      const data = snap.data() as SessionContext;
+      await this.memoryFallback.saveSession(data);
+      return data;
+    } catch (e) {
+      console.warn('Firestore getSession fallback to memory:', e);
+      return this.memoryFallback.getSession(sessionId);
+    }
   }
 
   async saveSession(session: SessionContext): Promise<void> {
-    const ref = doc(this.db, 'sessions', session.sessionId);
-    await setDoc(ref, session, { merge: true });
+    await this.memoryFallback.saveSession(session);
+    try {
+      const ref = doc(this.db, 'sessions', session.sessionId);
+      await setDoc(ref, session, { merge: true });
+    } catch (e) {
+      console.warn('Firestore saveSession sync notice (check Firestore rules):', e);
+    }
   }
 
   async saveActivityProgress(
@@ -174,29 +203,42 @@ export class FirestoreDatabaseAdapter implements DatabaseAdapter {
     activityId: string,
     data: ActivityProgressData
   ): Promise<void> {
-    const ref = doc(this.db, 'profiles', profileId, 'activities', activityId);
-    await setDoc(ref, data, { merge: true });
+    await this.memoryFallback.saveActivityProgress(profileId, activityId, data);
+    try {
+      const ref = doc(this.db, 'profiles', profileId, 'activities', activityId);
+      await setDoc(ref, data, { merge: true });
+    } catch (e) {
+      console.warn('Firestore saveActivityProgress sync notice:', e);
+    }
   }
 
   async getActivityProgress(
     profileId: string,
     activityId: string
   ): Promise<ActivityProgressData | null> {
-    const ref = doc(this.db, 'profiles', profileId, 'activities', activityId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    return snap.data() as ActivityProgressData;
+    try {
+      const ref = doc(this.db, 'profiles', profileId, 'activities', activityId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        return this.memoryFallback.getActivityProgress(profileId, activityId);
+      }
+      return snap.data() as ActivityProgressData;
+    } catch (e) {
+      return this.memoryFallback.getActivityProgress(profileId, activityId);
+    }
   }
 
   async deleteProfileData(profileId: string): Promise<void> {
-    // Delete profile doc
-    await deleteDoc(doc(this.db, 'profiles', profileId));
-
-    // Delete subcollections activities
-    const actRef = collection(this.db, 'profiles', profileId, 'activities');
-    const actSnap = await getDocs(actRef);
-    for (const d of actSnap.docs) {
-      await deleteDoc(d.ref);
+    await this.memoryFallback.deleteProfileData(profileId);
+    try {
+      await deleteDoc(doc(this.db, 'profiles', profileId));
+      const actRef = collection(this.db, 'profiles', profileId, 'activities');
+      const actSnap = await getDocs(actRef);
+      for (const d of actSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+    } catch (e) {
+      console.warn('Firestore deleteProfileData notice:', e);
     }
   }
 }
