@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ConversationMode } from '@/lib/types';
-import { BookOpen, MessageCircle, Gamepad2, Heart, Moon } from 'lucide-react';
+import { BookOpen, MessageCircle, Gamepad2, Heart, Moon, Loader2 } from 'lucide-react';
 
 interface ModeSelectorProps {
   currentMode: ConversationMode;
@@ -58,6 +58,14 @@ export function ModeSelector({
   onSelectMode,
   disabled = false,
 }: ModeSelectorProps) {
+  const [pendingMode, setPendingMode] = useState<ConversationMode | null>(null);
+
+  useEffect(() => {
+    if (!disabled) {
+      setPendingMode(null);
+    }
+  }, [disabled]);
+
   return (
     <nav
       aria-label="Activity Mode Options"
@@ -66,17 +74,25 @@ export function ModeSelector({
       {MODES.map((item) => {
         const Icon = item.icon;
         const isActive = currentMode === item.mode;
+        const isThisLoading = disabled && (pendingMode === item.mode || (pendingMode === null && isActive));
 
         return (
           <button
             key={item.mode}
             disabled={disabled}
-            onClick={() => onSelectMode(item.mode, item.prompt)}
+            onClick={() => {
+              setPendingMode(item.mode);
+              onSelectMode(item.mode, item.prompt);
+            }}
             className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-extrabold text-xs sm:text-sm shadow-md transition-all duration-200 cursor-pointer active:scale-95 whitespace-nowrap shrink-0 min-h-[42px] sm:min-h-[46px] ${
               isActive ? item.activeColor : item.color
-            } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+            } ${disabled ? (isThisLoading ? 'cursor-wait brightness-105' : 'opacity-60 cursor-not-allowed') : ''}`}
           >
-            <Icon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+            {isThisLoading ? (
+              <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin shrink-0 text-white" />
+            ) : (
+              <Icon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+            )}
             <span>{item.label}</span>
           </button>
         );

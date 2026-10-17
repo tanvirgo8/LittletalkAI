@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { ConversationTurn, QuickReply } from '@/lib/types';
-import { Send, Volume2, Sparkles, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Send, Volume2, Sparkles, User, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Mascot } from './Mascot';
 
 interface ChatInterfaceProps {
@@ -25,10 +25,17 @@ export function ChatInterface({
   onOpenActivity,
 }: ChatInterfaceProps) {
   const [inputText, setInputText] = useState('');
+  const [clickedReplyValue, setClickedReplyValue] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const quickRepliesRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setClickedReplyValue(null);
+    }
+  }, [isLoading]);
 
   // Mouse drag-to-scroll tracking
   const isDraggingRef = useRef(false);
@@ -203,14 +210,15 @@ export function ChatInterface({
       </div>
 
       {/* Quick Replies Tray */}
-      {quickReplies.length > 0 && !isLoading && (
+      {quickReplies.length > 0 && (
         <div className="relative bg-amber-100/80 border-t border-amber-200/80 flex items-center px-1.5 py-1.5 sm:px-2 sm:py-2">
           {/* Scroll Left Button */}
           {canScrollLeft && (
             <button
               type="button"
+              disabled={isLoading}
               onClick={() => scrollQuickReplies('left')}
-              className="absolute left-1 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-400 hover:bg-amber-500 text-amber-950 flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer shrink-0 border border-amber-300"
+              className="absolute left-1 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-400 hover:bg-amber-500 disabled:opacity-40 text-amber-950 flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer shrink-0 border border-amber-300"
               aria-label="Scroll left"
               title="Scroll left"
             >
@@ -234,27 +242,42 @@ export function ChatInterface({
             <span className="text-[11px] sm:text-xs font-bold text-amber-900 shrink-0 hidden md:inline">
               Quick Replies:
             </span>
-            {quickReplies.map((qr) => (
-              <button
-                key={qr.id}
-                onClick={() => {
-                  if (!hasDraggedRef.current) {
-                    onSendMessage(qr.value);
-                  }
-                }}
-                className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white hover:bg-amber-50 text-amber-950 font-bold text-xs sm:text-sm border-2 border-amber-300 shadow-xs hover:border-amber-400 transition-all cursor-pointer whitespace-nowrap active:scale-95 shrink-0 min-h-[36px]"
-              >
-                {qr.label}
-              </button>
-            ))}
+            {quickReplies.map((qr) => {
+              const isThisClicked = isLoading && clickedReplyValue === qr.value;
+              return (
+                <button
+                  key={qr.id}
+                  disabled={isLoading}
+                  onClick={() => {
+                    if (!hasDraggedRef.current && !isLoading) {
+                      setClickedReplyValue(qr.value);
+                      onSendMessage(qr.value);
+                    }
+                  }}
+                  className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white hover:bg-amber-50 text-amber-950 font-bold text-xs sm:text-sm border-2 border-amber-300 shadow-xs hover:border-amber-400 transition-all cursor-pointer whitespace-nowrap active:scale-95 shrink-0 min-h-[36px] flex items-center justify-center gap-1.5 ${
+                    isThisClicked
+                      ? 'bg-amber-100 border-amber-500 cursor-wait'
+                      : isLoading
+                      ? 'opacity-50 pointer-events-none'
+                      : ''
+                  }`}
+                >
+                  {isThisClicked && (
+                    <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-amber-700 shrink-0" />
+                  )}
+                  <span>{qr.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Scroll Right Button */}
           {canScrollRight && (
             <button
               type="button"
+              disabled={isLoading}
               onClick={() => scrollQuickReplies('right')}
-              className="absolute right-1 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-400 hover:bg-amber-500 text-amber-950 flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer shrink-0 border border-amber-300"
+              className="absolute right-1 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-400 hover:bg-amber-500 disabled:opacity-40 text-amber-950 flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer shrink-0 border border-amber-300"
               aria-label="Scroll right"
               title="Scroll right"
             >
@@ -284,7 +307,11 @@ export function ChatInterface({
           className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white p-2.5 sm:p-3 rounded-xl sm:rounded-2xl font-bold transition-all shadow-md active:scale-95 cursor-pointer shrink-0 min-h-[42px] min-w-[42px] flex items-center justify-center"
           aria-label="Send message"
         >
-          <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+          {isLoading && !clickedReplyValue ? (
+            <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin text-white" />
+          ) : (
+            <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+          )}
         </button>
       </form>
     </div>

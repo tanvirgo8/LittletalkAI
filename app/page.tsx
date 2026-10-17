@@ -18,24 +18,9 @@ import { ActivityCard } from '@/components/ActivityCard';
 import { ChatInterface } from '@/components/ChatInterface';
 import { Mascot, type MascotState } from '@/components/Mascot';
 import { ParentModal } from '@/components/ParentModal';
-import { Sparkles, ArrowRight, Award, MessageCircle } from 'lucide-react';
+import { Sparkles, ArrowRight, Award, MessageCircle, Loader2 } from 'lucide-react';
 
 import { soundFX } from '@/lib/sound-effects';
-
-const DEFAULT_ACTIVITY: ActivityDisplay = {
-  activityId: 'l1-colors-1',
-  questionId: 'l1-c1-q1',
-  question: 'What color is the banana? 🍌',
-  imageHint: '🍌',
-  options: [
-    { id: 'opt-0', label: 'Yellow', value: 'Yellow' },
-    { id: 'opt-1', label: 'Blue', value: 'Blue' },
-    { id: 'opt-2', label: 'Green', value: 'Green' },
-  ],
-  topic: 'colors',
-  level: 1,
-  hint: 'Bananas are bright and sunny!',
-};
 
 export default function HomePage() {
   // Session & Profile Identifiers with safe synchronous fallback
@@ -77,7 +62,7 @@ export default function HomePage() {
   // Conversational State
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
-  const [currentActivity, setCurrentActivity] = useState<ActivityDisplay | null>(DEFAULT_ACTIVITY);
+  const [currentActivity, setCurrentActivity] = useState<ActivityDisplay | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [lastLatencyMs, setLastLatencyMs] = useState<number | null>(null);
 
@@ -524,6 +509,10 @@ export default function HomePage() {
   const handleSelectMode = (newMode: ConversationMode, prompt: string) => {
     try { soundFX.playPopSound(); } catch {}
     setMode(newMode);
+    if (newMode === 'LEARNING' || newMode === 'ENGAGEMENT') {
+      // Clear previous activity so stale/mock content does not flash before new database question loads
+      setCurrentActivity(null);
+    }
     if (newMode === 'CONVERSATION') {
       setMobileTab('chat');
     } else {
@@ -649,10 +638,22 @@ export default function HomePage() {
                 activity={currentActivity}
                 onAnswer={handleAnswerSubmit}
                 onNextQuestion={handleNextQuestion}
+                isLoading={isLoading}
                 audioEnabled={audioEnabled}
                 onSpeak={speakText}
                 onOpenChat={() => setMobileTab('chat')}
               />
+            ) : (mode === 'LEARNING' || mode === 'ENGAGEMENT') && isLoading ? (
+              <div className="w-full bg-white rounded-2xl sm:rounded-4xl border-2 sm:border-3 border-amber-200/90 shadow-lg sm:shadow-xl p-8 sm:p-12 text-center flex flex-col items-center justify-center space-y-4 animate-fade-in min-h-[320px]">
+                <Mascot state="thinking" size="md" />
+                <h2 className="text-xl sm:text-2xl font-extrabold text-amber-950">
+                  {mode === 'ENGAGEMENT' ? 'Getting Your Game Ready! 🎮' : 'Loading Word Adventure... 📚'}
+                </h2>
+                <div className="flex items-center gap-2 text-amber-700 font-bold text-sm bg-amber-50 px-4 py-2 rounded-full border border-amber-200">
+                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 animate-spin shrink-0" />
+                  <span>Lumi is picking a fun question for you! ⭐</span>
+                </div>
+              </div>
             ) : (
               /* Non-learning mode spotlight card */
               <div className="w-full bg-white rounded-2xl sm:rounded-4xl border-2 sm:border-3 border-amber-200/90 shadow-lg sm:shadow-xl p-4 sm:p-10 text-center flex flex-col items-center justify-center space-y-3 sm:space-y-4">
@@ -686,10 +687,20 @@ export default function HomePage() {
                   {mode !== 'LEARNING' && (
                     <button
                       onClick={() => handleSelectMode('LEARNING', 'teach me words')}
-                      className="inline-flex items-center gap-1.5 sm:gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs sm:text-base px-4 py-2 sm:px-6 sm:py-3 rounded-xl sm:rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer"
+                      disabled={isLoading}
+                      className="inline-flex items-center gap-1.5 sm:gap-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-75 disabled:cursor-wait text-white font-extrabold text-xs sm:text-base px-4 py-2 sm:px-6 sm:py-3 rounded-xl sm:rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer"
                     >
-                      <span>Start Learning Words</span>
-                      <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                          <span>Loading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Start Learning Words</span>
+                          <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </>
+                      )}
                     </button>
                   )}
                   {currentActivity && mode !== 'LEARNING' && (
@@ -698,7 +709,8 @@ export default function HomePage() {
                         setMode('LEARNING');
                         setMobileTab('activity');
                       }}
-                      className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs sm:text-base px-4 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer"
+                      disabled={isLoading}
+                      className="inline-flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-75 text-white font-extrabold text-xs sm:text-base px-4 py-2 sm:px-5 sm:py-3 rounded-xl sm:rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer"
                     >
                       <Sparkles className="w-4 h-4" />
                       <span>Practice Question</span>

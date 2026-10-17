@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ActivityDisplay, AnswerResponse } from '@/lib/types';
-import { Lightbulb, Volume2, CheckCircle2, XCircle, ArrowRight, Sparkles, MessageCircle } from 'lucide-react';
+import { Lightbulb, Volume2, CheckCircle2, XCircle, ArrowRight, Sparkles, MessageCircle, Loader2 } from 'lucide-react';
 
 interface ActivityCardProps {
   activity: ActivityDisplay;
   onAnswer: (answer: string) => Promise<AnswerResponse | null>;
   onNextQuestion: () => void;
+  isLoading?: boolean;
   audioEnabled: boolean;
   onSpeak: (text: string) => void;
   onOpenChat?: () => void;
@@ -17,14 +18,23 @@ export function ActivityCard({
   activity,
   onAnswer,
   onNextQuestion,
+  isLoading = false,
   audioEnabled,
   onSpeak,
   onOpenChat,
 }: ActivityCardProps) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isNextLoading, setIsNextLoading] = useState(false);
   const [answerResult, setAnswerResult] = useState<AnswerResponse | null>(null);
   const [showHint, setShowHint] = useState(false);
+
+  useEffect(() => {
+    setIsNextLoading(false);
+    setSelectedOption(null);
+    setAnswerResult(null);
+    setShowHint(false);
+  }, [activity.questionId]);
 
   const handleSelect = async (optValue: string) => {
     if (selectedOption !== null || isSubmitting) return;
@@ -52,9 +62,7 @@ export function ActivityCard({
   };
 
   const handleNext = () => {
-    setSelectedOption(null);
-    setAnswerResult(null);
-    setShowHint(false);
+    setIsNextLoading(true);
     onNextQuestion();
   };
 
@@ -134,9 +142,12 @@ export function ActivityCard({
               onClick={() => handleSelect(opt.value)}
               className={`w-full min-h-[50px] sm:min-h-[64px] px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-2xl sm:rounded-3xl font-extrabold text-sm sm:text-lg flex items-center justify-between transition-all duration-200 cursor-pointer shadow-sm active:scale-98 ${btnStyle} ${
                 selectedOption === null ? 'hover:-translate-y-0.5' : ''
-              }`}
+              } ${isSubmitting && !isChosen ? 'opacity-60 pointer-events-none' : ''}`}
             >
               <span className="flex-1 text-center font-bold">{opt.label}</span>
+              {isSubmitting && isChosen && (
+                <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 text-amber-700 animate-spin shrink-0 ml-2" />
+              )}
               {hasResult && isCorrect && (
                 <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-white shrink-0 ml-2" />
               )}
@@ -189,10 +200,20 @@ export function ActivityCard({
 
             <button
               onClick={handleNext}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-sm sm:text-base px-5 py-2.5 sm:px-6 sm:py-3 rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
+              disabled={isNextLoading || isLoading}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-80 disabled:cursor-wait text-white font-extrabold text-sm sm:text-base px-5 py-2.5 sm:px-6 sm:py-3 rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
             >
-              <span>Next Question</span>
-              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              {isNextLoading || isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <>
+                  <span>Next Question</span>
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                </>
+              )}
             </button>
           </div>
         </div>

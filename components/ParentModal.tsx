@@ -16,6 +16,7 @@ import {
   Layers,
   Table,
   Check,
+  Loader2,
 } from 'lucide-react';
 
 interface ParentModalProps {
@@ -517,9 +518,16 @@ export function ParentModal({
                   <button
                     onClick={handleResetSessionClick}
                     disabled={isProcessing}
-                    className="mt-3 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer"
+                    className="mt-3 bg-amber-500 hover:bg-amber-600 disabled:opacity-75 disabled:cursor-wait text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
                   >
-                    Reset Active Chat
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Resetting...</span>
+                      </>
+                    ) : (
+                      <span>Reset Active Chat</span>
+                    )}
                   </button>
                 </div>
 
@@ -535,9 +543,16 @@ export function ParentModal({
                   <button
                     onClick={handleDeleteProfileClick}
                     disabled={isProcessing}
-                    className="mt-3 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer"
+                    className="mt-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-75 disabled:cursor-wait text-white font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
                   >
-                    Permanently Delete Profile
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <span>Permanently Delete Profile</span>
+                    )}
                   </button>
                 </div>
               </div>
