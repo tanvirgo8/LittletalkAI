@@ -6,9 +6,29 @@
 
 class SoundFX {
   private ctx: AudioContext | null = null;
+  private isMuted: boolean = false;
+
+  setMuted(muted: boolean): void {
+    this.isMuted = muted;
+    if (muted) {
+      this.stopAll();
+    }
+  }
+
+  getMuted(): boolean {
+    return this.isMuted;
+  }
+
+  stopAll(): void {
+    try {
+      if (this.ctx && this.ctx.state !== 'closed') {
+        this.ctx.suspend().catch(() => {});
+      }
+    } catch {}
+  }
 
   private getContext(): AudioContext | null {
-    if (typeof window === 'undefined') return null;
+    if (this.isMuted || typeof window === 'undefined') return null;
     try {
       if (!this.ctx) {
         const AudioCtx =
@@ -18,7 +38,7 @@ class SoundFX {
           this.ctx = new AudioCtx();
         }
       }
-      if (this.ctx && this.ctx.state === 'suspended') {
+      if (this.ctx && this.ctx.state === 'suspended' && !this.isMuted) {
         this.ctx.resume().catch(() => {});
       }
       return this.ctx;

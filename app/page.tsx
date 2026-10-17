@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import type {
   ConversationTurn,
@@ -84,8 +84,53 @@ export default function HomePage() {
   // Mascot & Audio State (Kid vs Baby Voice)
   const [mascotState, setMascotState] = useState<MascotState>('idle');
   const [audioEnabled, setAudioEnabled] = useState<boolean>(true);
+  const audioEnabledRef = useRef<boolean>(audioEnabled);
   const [voiceProfile, setVoiceProfile] = useState<'kid' | 'baby'>('kid');
   const [levelUpMessage, setLevelUpMessage] = useState<string | null>(null);
+
+  // Sync ref and instantly cancel speech synthesis & sound effects when sound is turned OFF
+  useEffect(() => {
+    audioEnabledRef.current = audioEnabled;
+    if (!audioEnabled) {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        try {
+          window.speechSynthesis.cancel();
+        } catch {}
+      }
+      try {
+        soundFX.setMuted(true);
+      } catch {}
+    } else {
+      try {
+        soundFX.setMuted(false);
+      } catch {}
+    }
+  }, [audioEnabled]);
+
+  // Audio Toggle Handler with Instant Sound Cancellation
+  const handleToggleAudio = useCallback(() => {
+    setAudioEnabled((prev) => {
+      const next = !prev;
+      audioEnabledRef.current = next;
+      if (!next) {
+        // Turning sound OFF: immediately cancel all ongoing speech and mute sound effects
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          try {
+            window.speechSynthesis.cancel();
+          } catch {}
+        }
+        try {
+          soundFX.setMuted(true);
+        } catch {}
+      } else {
+        try {
+          soundFX.setMuted(false);
+          soundFX.playPopSound();
+        } catch {}
+      }
+      return next;
+    });
+  }, []);
 
   // Parent Modal
   const [isParentModalOpen, setIsParentModalOpen] = useState<boolean>(false);
@@ -114,14 +159,17 @@ export default function HomePage() {
     return candidatePool[0] || null;
   }, []);
 
-  // Audio Text-to-Speech Helper strictly locked to female voice
+  // Audio Text-to-Speech Helper strictly locked to female voice with instant mute check
   const speakText = useCallback(
     (text: string) => {
-      if (!audioEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      if (!audioEnabled || !audioEnabledRef.current || typeof window === 'undefined' || !('speechSynthesis' in window)) {
         return;
       }
 
       const executeSpeak = (loadedVoices: SpeechSynthesisVoice[]) => {
+        // Abort immediately if sound was turned off in the meantime
+        if (!audioEnabledRef.current) return;
+
         try {
           window.speechSynthesis.cancel();
           // Strip emojis for cleaner speech pronunciation
@@ -129,7 +177,7 @@ export default function HomePage() {
             /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu,
             ''
           );
-          if (!cleanText.trim()) return;
+          if (!cleanText.trim() || !audioEnabledRef.current) return;
 
           const utterance = new SpeechSynthesisUtterance(cleanText);
 
@@ -149,7 +197,9 @@ export default function HomePage() {
             utterance.voice = femaleVoice;
           }
 
-          window.speechSynthesis.speak(utterance);
+          if (audioEnabledRef.current) {
+            window.speechSynthesis.speak(utterance);
+          }
         } catch (e) {
           console.warn('Speech synthesis error:', e);
         }
@@ -162,7 +212,7 @@ export default function HomePage() {
         // Voices not loaded yet by browser — wait for onvoiceschanged so it NEVER defaults to OS male voice!
         let hasSpoken = false;
         const handleVoicesReady = () => {
-          if (hasSpoken) return;
+          if (hasSpoken || !audioEnabledRef.current) return;
           hasSpoken = true;
           const readyVoices = window.speechSynthesis.getVoices();
           executeSpeak(readyVoices);
@@ -172,7 +222,7 @@ export default function HomePage() {
 
         // Fallback timer if onvoiceschanged doesn't fire
         setTimeout(() => {
-          if (!hasSpoken) {
+          if (!hasSpoken && audioEnabledRef.current) {
             hasSpoken = true;
             const fallbackVoices = window.speechSynthesis.getVoices();
             executeSpeak(fallbackVoices);
@@ -536,10 +586,7 @@ export default function HomePage() {
         stars={stars}
         mode={mode}
         audioEnabled={audioEnabled}
-        onToggleAudio={() => {
-          try { soundFX.playPopSound(); } catch {}
-          setAudioEnabled((prev) => !prev);
-        }}
+        onToggleAudio={handleToggleAudio}
         onOpenParentModal={() => setIsParentModalOpen(true)}
       />
 

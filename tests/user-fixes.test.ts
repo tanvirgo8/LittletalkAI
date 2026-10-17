@@ -193,4 +193,22 @@ describe('User Reported Fixes Verification', () => {
     expect(dataAnswer.activity).toBeDefined();
     expect(dataAnswer.activity.questionId).not.toBe(firstQId); // Advanced to next question!
   });
+
+  it('7. SoundFX supports instant muting and stopAll on sound off', async () => {
+    const { soundFX } = await import('@/lib/sound-effects');
+    expect(soundFX.getMuted()).toBe(false);
+
+    soundFX.setMuted(true);
+    expect(soundFX.getMuted()).toBe(true);
+
+    // Muted sound playback produces no exceptions and stays silent
+    expect(() => soundFX.playCorrectChime()).not.toThrow();
+    expect(() => soundFX.playPopSound()).not.toThrow();
+    expect(() => soundFX.playGentleTryAgain()).not.toThrow();
+    expect(() => soundFX.playLevelUpFanfare()).not.toThrow();
+
+    soundFX.setMuted(false);
+    expect(soundFX.getMuted()).toBe(false);
+  });
 });
+
