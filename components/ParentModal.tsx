@@ -146,20 +146,20 @@ export function ParentModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="parent-modal-title"
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 animate-fade-in"
     >
-      <div className="bg-white w-full max-w-3xl rounded-3xl sm:rounded-4xl shadow-2xl border-4 border-amber-300 overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="bg-white w-full max-w-3xl rounded-2xl sm:rounded-4xl shadow-2xl border-2 sm:border-4 border-amber-300 overflow-hidden max-h-[92vh] flex flex-col">
         {/* Modal Header */}
-        <div className="bg-amber-100/80 px-6 py-4 border-b border-amber-200 flex items-center justify-between">
+        <div className="bg-amber-100/80 px-4 sm:px-6 py-3 sm:py-4 border-b border-amber-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Shield className="w-6 h-6 text-amber-700" />
-            <h2 id="parent-modal-title" className="text-xl font-extrabold text-amber-950">
+            <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-amber-700" />
+            <h2 id="parent-modal-title" className="text-base sm:text-xl font-extrabold text-amber-950">
               Grown-Up &amp; Parent Dashboard
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-amber-200 text-amber-800 transition-colors cursor-pointer"
+            className="p-1 sm:p-1.5 rounded-full hover:bg-amber-200 text-amber-800 transition-colors cursor-pointer"
             aria-label="Close parent dashboard"
           >
             <X className="w-5 h-5" />
@@ -168,17 +168,17 @@ export function ParentModal({
 
         {/* Math Challenge Gate */}
         {!isUnlocked ? (
-          <div className="p-8 text-center my-auto">
-            <div className="w-16 h-16 bg-amber-100 rounded-3xl flex items-center justify-center mx-auto mb-4 text-amber-600">
-              <Lock className="w-8 h-8" />
+          <div className="p-5 sm:p-8 text-center my-auto">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 bg-amber-100 rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-3 sm:mb-4 text-amber-600">
+              <Lock className="w-7 h-7 sm:w-8 sm:h-8" />
             </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-1">Parent Verification</h3>
-            <p className="text-sm text-gray-600 mb-6">
+            <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1">Parent Verification</h3>
+            <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
               Please solve this quick problem to verify you are a parent:
             </p>
 
-            <form onSubmit={handleUnlock} className="max-w-xs mx-auto space-y-4">
-              <div className="text-2xl font-black text-amber-950 bg-amber-50 py-3 rounded-2xl border-2 border-amber-200">
+            <form onSubmit={handleUnlock} className="max-w-xs mx-auto space-y-3 sm:space-y-4">
+              <div className="text-xl sm:text-2xl font-black text-amber-950 bg-amber-50 py-2.5 sm:py-3 rounded-2xl border-2 border-amber-200">
                 {num1} + {num2} = ?
               </div>
               <input
@@ -187,7 +187,7 @@ export function ParentModal({
                 onChange={(e) => setGateInput(e.target.value)}
                 placeholder="Enter answer"
                 autoFocus
-                className="w-full text-center text-xl font-bold p-3 rounded-2xl border-2 border-gray-300 focus:border-amber-500 focus:outline-none"
+                className="w-full text-center text-lg sm:text-xl font-bold p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border-2 border-gray-300 focus:border-amber-500 focus:outline-none"
               />
               {gateError && (
                 <p className="text-xs font-bold text-rose-600">
@@ -196,7 +196,7 @@ export function ParentModal({
               )}
               <button
                 type="submit"
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-3 rounded-2xl shadow-md transition-all cursor-pointer"
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-2.5 sm:py-3 rounded-xl sm:rounded-2xl shadow-md transition-all cursor-pointer text-sm sm:text-base"
               >
                 Enter Parent Dashboard
               </button>
@@ -204,12 +204,12 @@ export function ParentModal({
           </div>
         ) : (
           /* Unlocked Parent Dashboard Content */
-          <div className="flex-1 overflow-y-auto flex flex-col">
+          <div className="flex-1 overflow-y-auto flex flex-col touch-scroll">
             {/* Tabs */}
-            <div className="flex border-b border-gray-200 bg-gray-50/80 px-6 pt-3 gap-1 sm:gap-2 overflow-x-auto">
+            <div className="flex border-b border-gray-200 bg-gray-50/80 px-3 sm:px-6 pt-2 sm:pt-3 gap-1 sm:gap-2 overflow-x-auto no-scrollbar overscroll-x-contain">
               <button
                 onClick={() => setActiveTab('progress')}
-                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-t-2xl border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-t-xl sm:rounded-t-2xl border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   activeTab === 'progress'
                     ? 'border-amber-500 text-amber-900 bg-white shadow-xs'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -219,18 +219,18 @@ export function ParentModal({
               </button>
               <button
                 onClick={() => setActiveTab('database')}
-                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-t-2xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-t-xl sm:rounded-t-2xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                   activeTab === 'database'
                     ? 'border-indigo-600 text-indigo-950 bg-white shadow-xs'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
-                <Database className="w-4 h-4 text-indigo-600" />
+                <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
                 <span>Database &amp; Tables</span>
               </button>
               <button
                 onClick={() => setActiveTab('privacy')}
-                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-t-2xl border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-t-xl sm:rounded-t-2xl border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   activeTab === 'privacy'
                     ? 'border-amber-500 text-amber-900 bg-white shadow-xs'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -240,7 +240,7 @@ export function ParentModal({
               </button>
               <button
                 onClick={() => setActiveTab('controls')}
-                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-t-2xl border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-t-xl sm:rounded-t-2xl border-b-2 transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   activeTab === 'controls'
                     ? 'border-amber-500 text-amber-900 bg-white shadow-xs'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -251,15 +251,15 @@ export function ParentModal({
             </div>
 
             {actionSuccess && (
-              <div className="m-4 p-3 bg-emerald-100 border border-emerald-300 rounded-2xl text-emerald-800 text-sm font-bold flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 shrink-0" />
+              <div className="m-3 sm:m-4 p-3 bg-emerald-100 border border-emerald-300 rounded-xl sm:rounded-2xl text-emerald-800 text-xs sm:text-sm font-bold flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
                 <span>{actionSuccess}</span>
               </div>
             )}
 
             {/* Tab 1: Progress */}
             {activeTab === 'progress' && (
-              <div className="p-6 space-y-6">
+              <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-6">
                 {/* Highlights Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl text-center">
@@ -353,7 +353,7 @@ export function ParentModal({
 
             {/* Tab 2: Database & Tables (Live Inspection) */}
             {activeTab === 'database' && (
-              <div className="p-6 space-y-5">
+              <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-5">
                 {/* Header Status Banner */}
                 <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
@@ -468,7 +468,7 @@ export function ParentModal({
 
             {/* Tab 3: Safety & Privacy */}
             {activeTab === 'privacy' && (
-              <div className="p-6 space-y-4">
+              <div className="p-3.5 sm:p-6 space-y-4">
                 <div className="bg-sky-50 border border-sky-200 p-4 rounded-2xl space-y-2">
                   <h4 className="font-bold text-sky-950 text-sm flex items-center gap-1.5">
                     <Info className="w-4 h-4 text-sky-700" />
@@ -504,7 +504,7 @@ export function ParentModal({
 
             {/* Tab 4: Data Controls */}
             {activeTab === 'controls' && (
-              <div className="p-6 space-y-6">
+              <div className="p-3.5 sm:p-6 space-y-4 sm:space-y-6">
                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">
                   <div className="flex items-center gap-2 font-bold text-amber-950">
                     <RotateCcw className="w-5 h-5 text-amber-600" />

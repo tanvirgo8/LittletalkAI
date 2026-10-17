@@ -61,7 +61,7 @@ export function ModeSelector({
   return (
     <nav
       aria-label="Activity Mode Options"
-      className="w-full flex items-center justify-center gap-2 sm:gap-3 py-2 px-2 overflow-x-auto no-scrollbar"
+      className="w-full flex items-center justify-start sm:justify-center gap-1.5 sm:gap-2.5 py-1 sm:py-2 px-1 sm:px-2 overflow-x-auto no-scrollbar overscroll-x-contain touch-pan-x"
     >
       {MODES.map((item) => {
         const Icon = item.icon;
@@ -72,11 +72,11 @@ export function ModeSelector({
             key={item.mode}
             disabled={disabled}
             onClick={() => onSelectMode(item.mode, item.prompt)}
-            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-extrabold text-xs sm:text-sm shadow-md transition-all duration-200 cursor-pointer active:scale-95 whitespace-nowrap ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl font-extrabold text-xs sm:text-sm shadow-md transition-all duration-200 cursor-pointer active:scale-95 whitespace-nowrap shrink-0 min-h-[42px] sm:min-h-[46px] ${
               isActive ? item.activeColor : item.color
             } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
           >
-            <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Icon className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
             <span>{item.label}</span>
           </button>
         );

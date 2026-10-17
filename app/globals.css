@@ -60,7 +60,8 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 
 /* Custom friendly scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: #fef0d0;
@@ -72,4 +73,18 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #f59e0b;
+}
+
+/* Hide scrollbar utility for touch horizontal scroll */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Smooth mobile momentum scrolling */
+.touch-scroll {
+  -webkit-overflow-scrolling: touch;
 }

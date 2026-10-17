@@ -6,7 +6,7 @@ export type MascotState = 'idle' | 'talking' | 'cheering' | 'thinking' | 'sleepi
 
 interface MascotProps {
   state?: MascotState;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   onClick?: () => void;
   className?: string;
 }
@@ -18,9 +18,10 @@ export function Mascot({
   className = '',
 }: MascotProps) {
   const dimensions = {
-    sm: 'w-16 h-16',
+    xs: 'w-8 h-8 sm:w-9 sm:h-9',
+    sm: 'w-12 h-12 sm:w-16 sm:h-16',
     md: 'w-24 h-24 sm:w-28 sm:h-28',
-    lg: 'w-36 h-36 sm:w-44 sm:h-44',
+    lg: 'w-32 h-32 sm:w-44 sm:h-44',
   }[size];
 
   return (
