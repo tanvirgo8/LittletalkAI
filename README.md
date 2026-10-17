@@ -282,22 +282,43 @@ Target (< 2000ms):      PASSED (Sub-2ms deterministic response)
 
 ## 🚢 Deployment Instructions
 
-### 1. Deploy to Vercel
+### 1. Deploy to Vercel (Serverless Ready)
 
-Vercel provides native zero-configuration deployment for Next.js App Router applications:
+LittleTalk AI is fully optimized for Vercel Serverless Functions with native `/tmp` directory detection and graceful in-memory relational failover:
 
-1. Push your code to GitHub / GitLab:
+1. **Node.js 22.x Runtime:**
+   - LittleTalk AI uses `node:sqlite` (introduced in Node.js 22.5+).
+   - In `package.json`, `"engines": { "node": ">=22.5.0" }` is pre-configured so Vercel automatically selects the Node 22.x runtime.
+   - Alternatively, in your Vercel Dashboard, go to **Settings &rarr; General &rarr; Node.js Version** and select **22.x**.
+
+2. **Push your code to GitHub / GitLab:**
    ```bash
    git add .
    git commit -m "feat: complete LittleTalk AI production release"
    git push origin main
    ```
-2. Navigate to [vercel.com](https://vercel.com) and click **"Add New Project"**.
-3. Import your repository.
-4. **Environment Variables:**
-   - In the Vercel project configuration, add your Firebase environment variables (`NEXT_PUBLIC_FIREBASE_PROJECT_ID`, etc.) if using Firestore in production.
-5. Click **"Deploy"**.
-   - Vercel automatically builds the production bundle (`npm run build`) and deploys the API routes as edge/serverless functions.
+
+3. **Import Project into Vercel:**
+   - Go to [vercel.com/new](https://vercel.com/new) and select your repository.
+   - Framework preset: **Next.js** (detected automatically).
+   - Root Directory: `./`
+
+4. **Environment Variables (Optional):**
+   - If using cloud persistence with Firebase, add:
+     - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+     - `NEXT_PUBLIC_FIREBASE_API_KEY`
+     - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+     - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+     - `NEXT_PUBLIC_FIREBASE_APP_ID`
+   - *Note: If no Firebase keys are set, LittleTalk AI automatically runs offline in persistent serverless SQLite mode with zero external dependencies.*
+
+5. **Serverless Filesystem Tolerance:**
+   - In AWS Lambda / Vercel Serverless containers, `process.cwd()` is strictly read-only (`/var/task`). LittleTalk AI automatically detects this and stores runtime SQLite data safely in `/tmp/littletalk.db`.
+   - If deployed on an older Node version without `node:sqlite`, the system automatically switches to the built-in in-memory relational store without dropping requests or throwing 500 errors.
+
+6. **Click "Deploy"**:
+   - Vercel builds the production bundle and deploys all API routes and UI within ~60 seconds.
+
 
 ---
 

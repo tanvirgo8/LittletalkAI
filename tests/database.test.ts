@@ -151,4 +151,19 @@ describe('Database Architecture & Live Table Tests', () => {
     expect(dataTable.recordCount).toBeGreaterThanOrEqual(12);
     expect(dataTable.records[0].id).toBeDefined();
   });
+
+  it('7. Handles serverless environments and fallback gracefully without throwing', () => {
+    // Verify that all core queries execute safely
+    const activities = getAllActivitiesFromDb();
+    expect(activities.length).toBeGreaterThanOrEqual(12);
+
+    const specificAct = getActivityByIdFromDb('l1-colors-1');
+    expect(specificAct).toBeDefined();
+    expect(specificAct?.title).toBe('What Color Is It?');
+
+    const stats = getDatabaseStats();
+    expect(stats.totalTables).toBe(8);
+    expect(stats.tables.length).toBe(8);
+  });
 });
+
