@@ -20,6 +20,8 @@ import { Mascot, type MascotState } from '@/components/Mascot';
 import { ParentModal } from '@/components/ParentModal';
 import { Sparkles, ArrowRight, Award } from 'lucide-react';
 
+import { soundFX } from '@/lib/sound-effects';
+
 export default function HomePage() {
   // Session & Profile Identifiers
   const [sessionId, setSessionId] = useState<string>('');
@@ -47,15 +49,16 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [lastLatencyMs, setLastLatencyMs] = useState<number | null>(null);
 
-  // Mascot & Audio State
+  // Mascot & Audio State (Kid vs Baby Voice)
   const [mascotState, setMascotState] = useState<MascotState>('idle');
   const [audioEnabled, setAudioEnabled] = useState<boolean>(true);
+  const [voiceProfile, setVoiceProfile] = useState<'kid' | 'baby'>('kid');
   const [levelUpMessage, setLevelUpMessage] = useState<string | null>(null);
 
   // Parent Modal
   const [isParentModalOpen, setIsParentModalOpen] = useState<boolean>(false);
 
-  // Audio Text-to-Speech Helper
+  // Audio Text-to-Speech Helper tuned for 10-year-old kid or baby voice
   const speakText = useCallback(
     (text: string) => {
       if (!audioEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -69,14 +72,45 @@ export default function HomePage() {
           ''
         );
         const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.rate = 0.9; // Slightly slower for young children
-        utterance.pitch = 1.2; // Cheerful friendly pitch
+
+        // Voice Profile Tuning:
+        // 'kid': 10-year-old lively older child voice (pitch ~1.48, rate ~0.96)
+        // 'baby': cute, cheerful toddler voice (pitch ~1.70, rate ~0.88)
+        if (voiceProfile === 'baby') {
+          utterance.pitch = 1.70;
+          utterance.rate = 0.88;
+        } else {
+          utterance.pitch = 1.48; // 10 years old kid voice frequency
+          utterance.rate = 0.96;
+        }
+
+        // Search for best matching voice from browser speech synthesis
+        const voices = window.speechSynthesis.getVoices();
+        if (voices.length > 0) {
+          const preferredVoice =
+            voices.find(
+              (v) =>
+                v.lang.startsWith('en') &&
+                /child|kid|junior|baby|girl|jenny|zira|samantha|flo|victoria/i.test(v.name)
+            ) ||
+            voices.find(
+              (v) =>
+                v.lang.startsWith('en') &&
+                !/david|mark|george|male|richard/i.test(v.name)
+            ) ||
+            voices.find((v) => v.lang.startsWith('en'));
+
+          if (preferredVoice) {
+            utterance.voice = preferredVoice;
+          }
+        }
+
         window.speechSynthesis.speak(utterance);
       } catch (e) {
         console.warn('Speech synthesis error:', e);
       }
     },
-    [audioEnabled]
+    [audioEnabled, voiceProfile]
   );
 
   // Initialize Session
@@ -253,8 +287,9 @@ export default function HomePage() {
 
       const data: AnswerResponse = await res.json();
 
-      // Confetti & Celebration
+      // Confetti & Sound Celebration
       if (data.correct) {
+        soundFX.playCorrectChime();
         setMascotState('cheering');
         try {
           confetti({
@@ -266,6 +301,8 @@ export default function HomePage() {
         } catch {
           // ignore confetti if unsupported
         }
+      } else {
+        soundFX.playGentleTryAgain();
       }
 
       // Update stars and level
@@ -274,6 +311,7 @@ export default function HomePage() {
       }
 
       if (data.levelUp) {
+        soundFX.playLevelUpFanfare();
         setLevel(data.levelUp.toLevel);
         setLevelUpMessage(data.levelUp.message);
         try {
@@ -303,8 +341,21 @@ export default function HomePage() {
 
   // Mode Selection
   const handleSelectMode = (newMode: ConversationMode, prompt: string) => {
+    soundFX.playPopSound();
     setMode(newMode);
     handleSendMessage(prompt);
+  };
+
+  // Toggle Voice Profile (10-Year-Old Kid vs Baby Voice)
+  const handleToggleVoiceProfile = () => {
+    soundFX.playPopSound();
+    const next = voiceProfile === 'kid' ? 'baby' : 'kid';
+    setVoiceProfile(next);
+    speakText(
+      next === 'kid'
+        ? "Hi! I am Lumi speaking in a ten year old kid voice!"
+        : "Hi! I am Lumi speaking in a cute baby voice!"
+    );
   };
 
   // Parent Controls: Reset Session
@@ -354,12 +405,17 @@ export default function HomePage() {
         stars={stars}
         mode={mode}
         audioEnabled={audioEnabled}
-        onToggleAudio={() => setAudioEnabled((prev) => !prev)}
+        onToggleAudio={() => {
+          soundFX.playPopSound();
+          setAudioEnabled((prev) => !prev);
+        }}
+        voiceProfile={voiceProfile}
+        onToggleVoiceProfile={handleToggleVoiceProfile}
         onOpenParentModal={() => setIsParentModalOpen(true)}
       />
 
       {/* Main Learning Hub */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-6 flex flex-col gap-4">
+      <main className="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-5 flex flex-col gap-3 min-h-0">
         {/* Child Mode Quick Selector */}
         <ModeSelector
           currentMode={mode}
@@ -368,9 +424,9 @@ export default function HomePage() {
         />
 
         {/* Dynamic Dual-Pane Learning Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-[500px]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0 lg:h-[calc(100vh-210px)] lg:max-h-[720px] lg:min-h-[480px]">
           {/* Left Panel: Active Activity or Mascot Spotlight */}
-          <div className="lg:col-span-7 flex flex-col justify-center">
+          <div className="lg:col-span-7 flex flex-col justify-center min-h-0">
             {mode === 'LEARNING' && currentActivity ? (
               <ActivityCard
                 activity={currentActivity}
@@ -422,7 +478,7 @@ export default function HomePage() {
           </div>
 
           {/* Right Panel: Conversational Chat Interface */}
-          <div className="lg:col-span-5 flex flex-col h-[460px] lg:h-auto">
+          <div className="lg:col-span-5 flex flex-col h-[500px] lg:h-full min-h-0 overflow-hidden">
             <ChatInterface
               turns={turns}
               quickReplies={quickReplies}

@@ -10,6 +10,8 @@ interface HeaderBarProps {
   mode: ConversationMode;
   audioEnabled: boolean;
   onToggleAudio: () => void;
+  voiceProfile: 'kid' | 'baby';
+  onToggleVoiceProfile: () => void;
   onOpenParentModal: () => void;
 }
 
@@ -45,6 +47,8 @@ export function HeaderBar({
   mode,
   audioEnabled,
   onToggleAudio,
+  voiceProfile,
+  onToggleVoiceProfile,
   onOpenParentModal,
 }: HeaderBarProps) {
   const currentLvl = LEVEL_LABELS[level] || LEVEL_LABELS[1];
@@ -63,7 +67,7 @@ export function HeaderBar({
               LittleTalk <span className="text-amber-500">AI</span>
             </h1>
             <p className="text-[11px] font-semibold text-amber-700/80 -mt-0.5 hidden sm:block">
-              English Learning for Kids Under 7
+              English Learning for Kids
             </p>
           </div>
         </div>
@@ -88,7 +92,7 @@ export function HeaderBar({
           </div>
         </div>
 
-        {/* Right Actions: Stars, Audio, Parent Portal */}
+        {/* Right Actions: Stars, Voice Style, Audio, Parent Portal */}
         <div className="flex items-center gap-2">
           {/* Stars Counter */}
           <div
@@ -99,11 +103,25 @@ export function HeaderBar({
             <span>{stars}</span>
           </div>
 
+          {/* Voice Profile Selector (Kid vs Baby) */}
+          <button
+            onClick={onToggleVoiceProfile}
+            aria-label={`Current voice: ${voiceProfile === 'kid' ? '10-Year-Old Kid Voice' : 'Baby Voice'}. Click to switch.`}
+            className="hidden xs:flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 px-2.5 py-1.5 rounded-xl font-bold text-xs transition-all shadow-xs cursor-pointer active:scale-95"
+            title={
+              voiceProfile === 'kid'
+                ? 'Voice: 10-Year-Old Kid Voice (Click to switch to Baby Voice)'
+                : 'Voice: Baby Voice (Click to switch to Kid Voice)'
+            }
+          >
+            <span>{voiceProfile === 'kid' ? '🧒 10y Kid' : '👶 Baby'}</span>
+          </button>
+
           {/* Audio Read-Aloud Toggle */}
           <button
             onClick={onToggleAudio}
             aria-label={audioEnabled ? 'Turn speech audio off' : 'Turn speech audio on'}
-            className={`p-2 rounded-xl border transition-all ${
+            className={`p-2 rounded-xl border transition-all cursor-pointer ${
               audioEnabled
                 ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200'
                 : 'bg-gray-100 text-gray-500 border-gray-200 hover:bg-gray-200'
@@ -120,7 +138,7 @@ export function HeaderBar({
           {/* Parent Zone Button */}
           <button
             onClick={onOpenParentModal}
-            className="flex items-center gap-1 bg-white hover:bg-amber-50 text-amber-900 border-2 border-amber-200 px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xs hover:border-amber-400"
+            className="flex items-center gap-1 bg-white hover:bg-amber-50 text-amber-900 border-2 border-amber-200 px-3 py-1.5 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xs hover:border-amber-400 cursor-pointer"
             title="Parent Area: View progress & safety controls"
           >
             <Shield className="w-4 h-4 text-amber-600" />

@@ -23,10 +23,15 @@ export function ChatInterface({
   onSpeak,
 }: ChatInterfaceProps) {
   const [inputText, setInputText] = useState('');
-  const endRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
   }, [turns, isLoading]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -37,9 +42,12 @@ export function ChatInterface({
   };
 
   return (
-    <div className="flex flex-col h-full bg-amber-50/40 rounded-3xl sm:rounded-4xl border-3 border-amber-200/90 shadow-xl overflow-hidden">
+    <div className="flex flex-col h-full max-h-full min-h-0 bg-amber-50/40 rounded-3xl sm:rounded-4xl border-3 border-amber-200/90 shadow-xl overflow-hidden">
       {/* Chat Messages Scrollable Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4"
+      >
         {turns.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-10">
             <Mascot state="idle" size="lg" />
@@ -105,8 +113,6 @@ export function ChatInterface({
             <span>Lumi is thinking... ⭐</span>
           </div>
         )}
-
-        <div ref={endRef} />
       </div>
 
       {/* Quick Replies Tray */}
