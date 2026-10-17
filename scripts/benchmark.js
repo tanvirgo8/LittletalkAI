@@ -22,7 +22,7 @@ async function runDirectBenchmark() {
   console.log('====================================================');
   console.log('LittleTalk AI - Response Latency Benchmark');
   console.log('Environment: Node.js ' + process.version + ' (' + process.platform + ' ' + process.arch + ')');
-  console.log('Fast-path Engine: Deterministic Rule-Based + In-Memory Adapter');
+  console.log('Fast-path Engine: Deterministic Rule-Based + SQLite Relational Database Engine');
   console.log('Target: Sub-2000ms (2.0s) response latency');
   console.log('====================================================\n');
 

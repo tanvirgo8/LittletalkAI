@@ -93,11 +93,41 @@ describe('User Reported Fixes Verification', () => {
     const reqAnimals = new Request('http://localhost/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'teach me animals', sessionId, profileId }),
+      body: JSON.stringify({ message: 'play animal game', sessionId, profileId }),
     });
     const resAnimals = await chatHandler(reqAnimals);
     const dataAnimals = await resAnimals.json();
     expect(dataAnimals.activity.topic).toBe('animals');
+
+    // Selecting Colors category loads colors game
+    const reqColors = new Request('http://localhost/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'play color game', sessionId, profileId }),
+    });
+    const resColors = await chatHandler(reqColors);
+    const dataColors = await resColors.json();
+    expect(dataColors.activity.topic).toBe('colors');
+
+    // Selecting Numbers category loads numbers game
+    const reqNumbers = new Request('http://localhost/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'play number game', sessionId, profileId }),
+    });
+    const resNumbers = await chatHandler(reqNumbers);
+    const dataNumbers = await resNumbers.json();
+    expect(dataNumbers.activity.topic).toBe('numbers');
+
+    // Selecting Fruits category loads fruits game
+    const reqFruits = new Request('http://localhost/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'play fruit game', sessionId, profileId }),
+    });
+    const resFruits = await chatHandler(reqFruits);
+    const dataFruits = await resFruits.json();
+    expect(dataFruits.activity.topic).toBe('fruits');
   });
 
   it('4. Next question advances to the next question without repeating', async () => {

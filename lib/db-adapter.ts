@@ -36,7 +36,7 @@ export interface ActivityProgressData {
 
 export interface DatabaseAdapter {
   isPersistent(): boolean;
-  getStorageType(): 'firestore' | 'sqlite' | 'in-memory-demo';
+  getStorageType(): 'firestore' | 'sqlite';
   getProfile(profileId: string): Promise<ChildProfile | null>;
   saveProfile(profile: ChildProfile): Promise<void>;
   getSession(sessionId: string): Promise<SessionContext | null>;
@@ -59,7 +59,7 @@ export class SqliteDatabaseAdapter implements DatabaseAdapter {
     return true;
   }
 
-  getStorageType(): 'firestore' | 'sqlite' | 'in-memory-demo' {
+  getStorageType(): 'firestore' | 'sqlite' {
     return 'sqlite';
   }
 
@@ -99,73 +99,6 @@ export class SqliteDatabaseAdapter implements DatabaseAdapter {
   }
 }
 
-// ─── In-Memory Demo Adapter (Unit Testing Fallback) ─────────
-export class MemoryDatabaseAdapter implements DatabaseAdapter {
-  private profiles = new Map<string, ChildProfile>();
-  private sessions = new Map<string, SessionContext>();
-  private activities = new Map<string, Map<string, ActivityProgressData>>();
-
-  isPersistent(): boolean {
-    return false;
-  }
-
-  getStorageType(): 'firestore' | 'sqlite' | 'in-memory-demo' {
-    return 'in-memory-demo';
-  }
-
-  async getProfile(profileId: string): Promise<ChildProfile | null> {
-    return this.profiles.get(profileId) ?? null;
-  }
-
-  async saveProfile(profile: ChildProfile): Promise<void> {
-    this.profiles.set(profile.profileId, { ...profile });
-  }
-
-  async getSession(sessionId: string): Promise<SessionContext | null> {
-    return this.sessions.get(sessionId) ?? null;
-  }
-
-  async saveSession(session: SessionContext): Promise<void> {
-    this.sessions.set(session.sessionId, { ...session });
-  }
-
-  async saveActivityProgress(
-    profileId: string,
-    activityId: string,
-    data: ActivityProgressData
-  ): Promise<void> {
-    let userActivities = this.activities.get(profileId);
-    if (!userActivities) {
-      userActivities = new Map<string, ActivityProgressData>();
-      this.activities.set(profileId, userActivities);
-    }
-    userActivities.set(activityId, { ...data });
-  }
-
-  async getActivityProgress(
-    profileId: string,
-    activityId: string
-  ): Promise<ActivityProgressData | null> {
-    return this.activities.get(profileId)?.get(activityId) ?? null;
-  }
-
-  async deleteProfileData(profileId: string): Promise<void> {
-    this.profiles.delete(profileId);
-    this.activities.delete(profileId);
-    for (const [sId, sess] of this.sessions.entries()) {
-      if (sess.profileId === profileId) {
-        this.sessions.delete(sId);
-      }
-    }
-  }
-
-  clearAll(): void {
-    this.profiles.clear();
-    this.sessions.clear();
-    this.activities.clear();
-  }
-}
-
 // ─── Firebase Firestore Adapter ────────────────────────────
 export class FirestoreDatabaseAdapter implements DatabaseAdapter {
   private db: Firestore;
@@ -195,7 +128,7 @@ export class FirestoreDatabaseAdapter implements DatabaseAdapter {
     return true;
   }
 
-  getStorageType(): 'firestore' | 'sqlite' | 'in-memory-demo' {
+  getStorageType(): 'firestore' | 'sqlite' {
     return 'firestore';
   }
 

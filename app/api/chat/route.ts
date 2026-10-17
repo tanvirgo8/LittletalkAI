@@ -8,6 +8,7 @@ import { generateSELResponse, generateTopicIntro, generateHintMessage } from '@/
 import {
   getNextActivity,
   getActivityById,
+  getActivitiesByTopic,
   TOPIC_LABELS,
   LEVEL_DESCRIPTIONS,
 } from '@/lib/learning-content';
@@ -23,6 +24,7 @@ import { scoreAnswer } from '@/lib/mastery-engine';
 import { getDatabaseAdapter } from '@/lib/db-adapter';
 import { getChatProvider } from '@/lib/chat-provider';
 import type {
+  Activity,
   ChatResponse,
   QuickReply,
   ActivityDisplay,
@@ -223,7 +225,18 @@ export async function POST(req: Request) {
         hint: nextQ.hint,
       };
 
-      quickReplies = nextOptions;
+      if (targetMode === 'ENGAGEMENT') {
+        const gameCategories: QuickReply[] = [
+          { id: 'qr-game-animals', label: '🐾 Animal Quiz', value: 'play animal game' },
+          { id: 'qr-game-colors', label: '🎨 Color Match', value: 'play color game' },
+          { id: 'qr-game-numbers', label: '🔢 Star Counter', value: 'play number game' },
+          { id: 'qr-game-fruits', label: '🍎 Fruit Pop', value: 'play fruit game' },
+          { id: 'qr-game-words', label: '🪑 Word Hunt', value: 'play word game' },
+        ];
+        quickReplies = [...nextOptions, ...gameCategories];
+      } else {
+        quickReplies = nextOptions;
+      }
 
       if (isCorrect) {
         reply = `Spot on! ⭐ "${activeQForAnswer.correctAnswer}" is correct! 🎉\n\n${generateTopicIntro(
@@ -312,18 +325,30 @@ export async function POST(req: Request) {
         ? getActivityById(session.currentActivityId)
         : undefined;
 
-      // If no activity or switching topics, get next
+      // If switching topics or no active activity, find matching activity for this topic
       if (!activity) {
-        activity = getNextActivity(
-          session.currentLevel,
-          session.completedActivities,
-          session.currentTopic
-        );
+        if (session.currentTopic) {
+          const topicActivities = getActivitiesByTopic(session.currentTopic);
+          activity =
+            topicActivities.find(
+              (a) => a.level === session.currentLevel && !session.completedActivities.includes(a.id)
+            ) ||
+            topicActivities.find((a) => a.level === session.currentLevel) ||
+            topicActivities[0];
+        }
+
+        if (!activity) {
+          activity = getNextActivity(
+            session.currentLevel,
+            session.completedActivities,
+            session.currentTopic
+          );
+        }
       }
 
-      // Fallback if completed or not found
+      // Fallback if not found
       if (!activity) {
-        activity = getActivityById('l1-objects-1') || getActivityById('l1-colors-1');
+        activity = getActivityById('l1-colors-1') || getActivityById('l1-animals-1');
       }
 
       if (activity) {
@@ -459,9 +484,30 @@ export async function POST(req: Request) {
     } else if (targetMode === 'ENGAGEMENT') {
       // Pick a game activity based on topicHint or current topic
       let gameTopic: LearningTopic = (topicHint as LearningTopic) || session.currentTopic || 'animals';
-      let activity = getNextActivity(session.currentLevel, session.completedActivities, gameTopic);
+
+      // Explicitly retrieve activities for this game topic
+      const topicActivities = getActivitiesByTopic(gameTopic);
+      let activity: Activity | undefined;
+
+      // If already in an activity for this topic and no new topic requested, continue it
+      if (session.currentActivityId && !topicHint) {
+        const currentAct = getActivityById(session.currentActivityId);
+        if (currentAct && currentAct.topic === gameTopic) {
+          activity = currentAct;
+        }
+      }
+
       if (!activity) {
-        activity = getActivityById(session.currentActivityId || 'l1-animals-1') || getActivityById('l1-animals-1');
+        activity =
+          topicActivities.find(
+            (a) => a.level === session.currentLevel && !session.completedActivities.includes(a.id)
+          ) ||
+          topicActivities.find((a) => a.level === session.currentLevel) ||
+          topicActivities[0];
+      }
+
+      if (!activity) {
+        activity = getActivityById('l1-animals-1') || getActivityById('l1-colors-1');
       }
 
       if (activity) {
@@ -473,6 +519,11 @@ export async function POST(req: Request) {
         );
 
         if (!unansweredQuestion) {
+          // Recycle questions for continuous fun game play
+          activity.questions.forEach((q) => {
+            const idx = session.answeredQuestionIds.indexOf(q.id);
+            if (idx > -1) session.answeredQuestionIds.splice(idx, 1);
+          });
           unansweredQuestion = activity.questions[0];
         }
 
@@ -497,17 +548,32 @@ export async function POST(req: Request) {
 
         const topicName = TOPIC_LABELS[activity.topic] || activity.topic;
         reply = `Game On! 🎮 Let's play the ${topicName} game! ${unansweredQuestion.text}`;
+
+        const answerQuickReplies: QuickReply[] = options.map((opt) => ({
+          id: opt.id,
+          label: opt.label,
+          value: opt.value,
+        }));
+
+        const categoryQuickReplies: QuickReply[] = [
+          { id: 'qr-game-animals', label: '🐾 Animal Quiz', value: 'play animal game' },
+          { id: 'qr-game-colors', label: '🎨 Color Match', value: 'play color game' },
+          { id: 'qr-game-numbers', label: '🔢 Star Counter', value: 'play number game' },
+          { id: 'qr-game-fruits', label: '🍎 Fruit Pop', value: 'play fruit game' },
+          { id: 'qr-game-words', label: '🪑 Word Hunt', value: 'play word game' },
+        ];
+
+        quickReplies = [...answerQuickReplies, ...categoryQuickReplies];
       } else {
         reply = "Let's play! 🎮 Choose a game category below!";
+        quickReplies = [
+          { id: 'qr-game-animals', label: '🐾 Animal Quiz', value: 'play animal game' },
+          { id: 'qr-game-colors', label: '🎨 Color Match', value: 'play color game' },
+          { id: 'qr-game-numbers', label: '🔢 Star Counter', value: 'play number game' },
+          { id: 'qr-game-fruits', label: '🍎 Fruit Pop', value: 'play fruit game' },
+          { id: 'qr-game-words', label: '🪑 Word Hunt', value: 'play word game' },
+        ];
       }
-
-      quickReplies = [
-        { id: 'qr-game-animals', label: '🐾 Animal Quiz', value: 'teach me animals' },
-        { id: 'qr-game-colors', label: '🎨 Color Match', value: 'teach me colors' },
-        { id: 'qr-game-numbers', label: '🔢 Star Counter', value: 'teach me numbers' },
-        { id: 'qr-game-fruits', label: '🍎 Fruit Pop', value: 'teach me fruits' },
-        { id: 'qr-game-words', label: '🪑 Word Hunt', value: 'teach me words' },
-      ];
     } else {
       // CONVERSATION mode
       const chatProvider = getChatProvider();

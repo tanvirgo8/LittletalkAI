@@ -88,3 +88,19 @@ button:focus-visible, a:focus-visible, input:focus-visible {
 .touch-scroll {
   -webkit-overflow-scrolling: touch;
 }
+
+/* Quick Replies horizontal scrollbar styling */
+.quick-replies-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.quick-replies-scroll::-webkit-scrollbar-track {
+  background: rgba(254, 240, 208, 0.4);
+  border-radius: 9999px;
+}
+.quick-replies-scroll::-webkit-scrollbar-thumb {
+  background: #fcd34d;
+  border-radius: 9999px;
+}
+.quick-replies-scroll::-webkit-scrollbar-thumb:hover {
+  background: #f59e0b;
+}

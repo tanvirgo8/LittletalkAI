@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { ConversationTurn, QuickReply } from '@/lib/types';
-import { Send, Volume2, Sparkles, User } from 'lucide-react';
+import { Send, Volume2, Sparkles, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Mascot } from './Mascot';
 
 interface ChatInterfaceProps {
@@ -26,6 +26,77 @@ export function ChatInterface({
 }: ChatInterfaceProps) {
   const [inputText, setInputText] = useState('');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const quickRepliesRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  // Mouse drag-to-scroll tracking
+  const isDraggingRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragStartScrollLeftRef = useRef(0);
+  const hasDraggedRef = useRef(false);
+
+  const checkScrollability = useCallback(() => {
+    if (quickRepliesRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = quickRepliesRef.current;
+      setCanScrollLeft(scrollLeft > 4);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 4);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Check initially and on next frame when DOM renders
+    checkScrollability();
+    const timer = setTimeout(checkScrollability, 100);
+    const el = quickRepliesRef.current;
+    if (el) {
+      el.addEventListener('scroll', checkScrollability, { passive: true });
+      window.addEventListener('resize', checkScrollability);
+      return () => {
+        clearTimeout(timer);
+        el.removeEventListener('scroll', checkScrollability);
+        window.removeEventListener('resize', checkScrollability);
+      };
+    }
+    return () => clearTimeout(timer);
+  }, [quickReplies, checkScrollability]);
+
+  const scrollQuickReplies = (direction: 'left' | 'right') => {
+    if (quickRepliesRef.current) {
+      const offset = direction === 'left' ? -200 : 200;
+      quickRepliesRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+    }
+  };
+
+  const handleQuickRepliesWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (quickRepliesRef.current && e.deltaY !== 0) {
+      quickRepliesRef.current.scrollLeft += e.deltaY;
+      checkScrollability();
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!quickRepliesRef.current) return;
+    isDraggingRef.current = true;
+    dragStartXRef.current = e.pageX - quickRepliesRef.current.offsetLeft;
+    dragStartScrollLeftRef.current = quickRepliesRef.current.scrollLeft;
+    hasDraggedRef.current = false;
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current || !quickRepliesRef.current) return;
+    const x = e.pageX - quickRepliesRef.current.offsetLeft;
+    const walk = (x - dragStartXRef.current) * 1.5;
+    if (Math.abs(walk) > 5) {
+      hasDraggedRef.current = true;
+    }
+    quickRepliesRef.current.scrollLeft = dragStartScrollLeftRef.current - walk;
+    checkScrollability();
+  };
+
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+  };
 
   useEffect(() => {
     if (scrollContainerRef.current) {
@@ -133,19 +204,63 @@ export function ChatInterface({
 
       {/* Quick Replies Tray */}
       {quickReplies.length > 0 && !isLoading && (
-        <div className="px-3 py-2 sm:px-4 sm:py-2.5 bg-amber-100/70 border-t border-amber-200/70 overflow-x-auto no-scrollbar overscroll-x-contain touch-pan-x flex items-center gap-1.5 sm:gap-2">
-          <span className="text-[11px] sm:text-xs font-bold text-amber-900 shrink-0 hidden md:inline">
-            Quick Replies:
-          </span>
-          {quickReplies.map((qr) => (
+        <div className="relative bg-amber-100/80 border-t border-amber-200/80 flex items-center px-1.5 py-1.5 sm:px-2 sm:py-2">
+          {/* Scroll Left Button */}
+          {canScrollLeft && (
             <button
-              key={qr.id}
-              onClick={() => onSendMessage(qr.value)}
-              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white hover:bg-amber-50 text-amber-950 font-bold text-xs sm:text-sm border-2 border-amber-300 shadow-xs hover:border-amber-400 transition-all cursor-pointer whitespace-nowrap active:scale-95 shrink-0 min-h-[36px]"
+              type="button"
+              onClick={() => scrollQuickReplies('left')}
+              className="absolute left-1 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-400 hover:bg-amber-500 text-amber-950 flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer shrink-0 border border-amber-300"
+              aria-label="Scroll left"
+              title="Scroll left"
             >
-              {qr.label}
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
             </button>
-          ))}
+          )}
+
+          <div
+            ref={quickRepliesRef}
+            onWheel={handleQuickRepliesWheel}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            className="flex-1 overflow-x-auto overscroll-x-contain touch-pan-x flex items-center gap-1.5 sm:gap-2 px-2 py-0.5 scroll-smooth select-none cursor-grab active:cursor-grabbing quick-replies-scroll"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#f59e0b #fef0d0',
+            }}
+          >
+            <span className="text-[11px] sm:text-xs font-bold text-amber-900 shrink-0 hidden md:inline">
+              Quick Replies:
+            </span>
+            {quickReplies.map((qr) => (
+              <button
+                key={qr.id}
+                onClick={() => {
+                  if (!hasDraggedRef.current) {
+                    onSendMessage(qr.value);
+                  }
+                }}
+                className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white hover:bg-amber-50 text-amber-950 font-bold text-xs sm:text-sm border-2 border-amber-300 shadow-xs hover:border-amber-400 transition-all cursor-pointer whitespace-nowrap active:scale-95 shrink-0 min-h-[36px]"
+              >
+                {qr.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Scroll Right Button */}
+          {canScrollRight && (
+            <button
+              type="button"
+              onClick={() => scrollQuickReplies('right')}
+              className="absolute right-1 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-amber-400 hover:bg-amber-500 text-amber-950 flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer shrink-0 border border-amber-300"
+              aria-label="Scroll right"
+              title="Scroll right"
+            >
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
+            </button>
+          )}
         </div>
       )}
 
