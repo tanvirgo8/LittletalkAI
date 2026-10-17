@@ -24,7 +24,7 @@
   - [Deploy to Render or Railway](#4-deploy-to-render-or-railway)
 - [Parental Controls & Child Safety (COPPA Aligned)](#-parental-controls--child-safety)
 - [Directory Structure](#-directory-structure)
-- [Documentation Index](#-documentation-index)
+- [License](#-license)
 
 ---
 
@@ -442,14 +442,6 @@ LittleTalk AI adheres strictly to the **Children's Online Privacy Protection Act
 │   └── ParentModal.tsx                # Gated parent portal & live database inspector
 ├── data/
 │   └── littletalk.db                  # Local SQLite 3 relational database file
-├── docs/
-│   ├── api-design.md                  # Complete OpenAPI specification & schemas
-│   ├── architecture.md                # Mermaid system diagrams
-│   ├── data-model.md                  # Relational & Firestore schema specs
-│   ├── performance.md                 # Latency analysis & benchmark reports
-│   ├── security-and-privacy.md        # COPPA alignment & threat assessment
-│   ├── system-design.md               # 18-section architectural system design
-│   └── video-script.md                # 2-minute project walkthrough script
 ├── lib/
 │   ├── chat-provider.ts               # Offline rule provider & optional LLM fallback
 │   ├── curriculum-seed.ts             # Seed curriculum definitions
@@ -480,20 +472,6 @@ LittleTalk AI adheres strictly to the **Children's Online Privacy Protection Act
 ├── tsconfig.json                      # TypeScript configuration
 └── vitest.config.ts                   # Vitest testing configuration
 ```
-
----
-
-## 📚 Documentation Index
-
-For deep-dive architectural specifications, consult the following documents in `docs/`:
-
-1. [System Design Document](docs/system-design.md) — Comprehensive 18-section system design.
-2. [Architecture Diagrams](docs/architecture.md) — Context, container, and sequence diagrams.
-3. [API Design Specification](docs/api-design.md) — Route contracts, request/response payloads, and error codes.
-4. [Data Model & Database Specs](docs/data-model.md) — Relational table schemas, indexes, and Firestore collections.
-5. [Performance & Latency Analysis](docs/performance.md) — Sub-2-second benchmark results and profiling data.
-6. [Security & Privacy Blueprint](docs/security-and-privacy.md) — COPPA adherence, threat model, and safety guardrails.
-7. [Presentation Video Script](docs/video-script.md) — 2-minute product walkthrough and demonstration script.
 
 ---
 
