@@ -3,8 +3,22 @@ const path = require('path');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typedRoutes: false,
-  webpack: (config) => {
+  serverExternalPackages: ['node:sqlite'],
+  webpack: (config, { isServer }) => {
     config.resolve.alias['@'] = path.resolve(__dirname);
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push('node:sqlite');
+    } else {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        'node:fs': false,
+        'node:path': false,
+        'node:sqlite': false,
+      };
+    }
     return config;
   },
   // Security headers

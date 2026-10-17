@@ -12,20 +12,20 @@ interface ModeSelectorProps {
 
 const MODES = [
   {
+    mode: 'CONVERSATION' as ConversationMode,
+    label: "Let's Chat",
+    icon: MessageCircle,
+    prompt: "Hello Lumi! Let's chat!",
+    color: 'bg-sky-500 hover:bg-sky-600 text-white shadow-sky-200',
+    activeColor: 'ring-4 ring-sky-300 bg-sky-600 text-white',
+  },
+  {
     mode: 'LEARNING' as ConversationMode,
     label: 'Learn Words',
     icon: BookOpen,
-    prompt: 'teach me',
+    prompt: 'teach me words',
     color: 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-200',
     activeColor: 'ring-4 ring-emerald-300 bg-emerald-600 text-white',
-  },
-  {
-    mode: 'CONVERSATION' as ConversationMode,
-    label: 'Let\'s Chat',
-    icon: MessageCircle,
-    prompt: 'tell me about your favorite animal',
-    color: 'bg-sky-500 hover:bg-sky-600 text-white shadow-sky-200',
-    activeColor: 'ring-4 ring-sky-300 bg-sky-600 text-white',
   },
   {
     mode: 'ENGAGEMENT' as ConversationMode,

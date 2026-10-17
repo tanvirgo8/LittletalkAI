@@ -4,7 +4,7 @@
 import { NextResponse } from 'next/server';
 import { ChatRequestSchema } from '@/lib/validations';
 import { detectMode, validateModeTransition, extractTopicFromMessage } from '@/lib/mode-detection';
-import { generateSELResponse, generateTopicIntro } from '@/lib/sel-engine';
+import { generateSELResponse, generateTopicIntro, generateHintMessage } from '@/lib/sel-engine';
 import {
   getNextActivity,
   getActivityById,
@@ -17,7 +17,9 @@ import {
   updateSession,
   addTurn,
   calculateProgressSummary,
+  addAssessedAnswer,
 } from '@/lib/session-manager';
+import { scoreAnswer } from '@/lib/mastery-engine';
 import { getDatabaseAdapter } from '@/lib/db-adapter';
 import { getChatProvider } from '@/lib/chat-provider';
 import type {
@@ -94,7 +96,26 @@ export async function POST(req: Request) {
     // Topic extraction if specified by child
     const topicHint = extractTopicFromMessage(message);
     if (topicHint) {
+      const isNewTopic = session.currentTopic !== topicHint;
       session.currentTopic = topicHint as LearningTopic;
+      if (isNewTopic || !session.currentActivityId) {
+        session.currentActivityId = undefined;
+        session.currentQuestionId = undefined;
+      } else if (session.currentActivityId) {
+        const currentAct = getActivityById(session.currentActivityId);
+        if (!currentAct || currentAct.topic !== topicHint) {
+          session.currentActivityId = undefined;
+          session.currentQuestionId = undefined;
+        }
+      }
+    }
+
+    // Skip to next question request
+    const isNextQuestionRequest = /next (question|activity|one)|another question|skip/i.test(message);
+    if (isNextQuestionRequest && session.currentQuestionId) {
+      if (!session.answeredQuestionIds.includes(session.currentQuestionId)) {
+        session.answeredQuestionIds.push(session.currentQuestionId);
+      }
     }
 
     // 3. Response Generation Strategy
@@ -105,13 +126,193 @@ export async function POST(req: Request) {
 
     const engineStart = performance.now();
 
-    if (targetMode === 'LEARNING') {
+    // Check if child is asking for an easier question or a hint
+    const wantsEasier = /easier (question|one)|give me (an? )?easier/i.test(message);
+    const wantsHint = /hint|clue/i.test(message);
+
+    // Check if the message is an answer to the current active question
+    let activeActForAnswer = session.currentActivityId
+      ? getActivityById(session.currentActivityId)
+      : undefined;
+    let activeQForAnswer = activeActForAnswer?.questions.find(
+      (q) => q.id === session.currentQuestionId
+    );
+
+    const isDirectAnswer =
+      activeActForAnswer &&
+      activeQForAnswer &&
+      (targetMode === 'LEARNING' || targetMode === 'ENGAGEMENT') &&
+      !isNextQuestionRequest &&
+      !wantsEasier &&
+      !wantsHint &&
+      (activeQForAnswer.options?.some(
+        (opt) => opt.trim().toLowerCase() === message.trim().toLowerCase()
+      ) ||
+        activeQForAnswer.correctAnswer.trim().toLowerCase() === message.trim().toLowerCase());
+
+    if (isDirectAnswer && activeActForAnswer && activeQForAnswer) {
+      const isCorrect = scoreAnswer(
+        message,
+        activeQForAnswer.correctAnswer,
+        activeActForAnswer.type === 'conversation_prompt'
+      );
+
+      // Register assessed answer
+      const assessedRecord = {
+        questionId: activeQForAnswer.id,
+        activityId: activeActForAnswer.id,
+        correct: isCorrect,
+        topic: activeActForAnswer.topic,
+        level: session.currentLevel,
+        timestamp: new Date().toISOString(),
+      };
+      addAssessedAnswer(session.sessionId, assessedRecord);
+
+      if (!session.answeredQuestionIds.includes(activeQForAnswer.id)) {
+        session.answeredQuestionIds.push(activeQForAnswer.id);
+      }
+
+      // Find next question in this activity
+      let nextQ = activeActForAnswer.questions.find(
+        (q) => !session.answeredQuestionIds.includes(q.id)
+      );
+
+      if (!nextQ) {
+        if (!session.completedActivities.includes(activeActForAnswer.id)) {
+          session.completedActivities.push(activeActForAnswer.id);
+        }
+        const nextAct = getNextActivity(
+          session.currentLevel,
+          session.completedActivities,
+          session.currentTopic
+        );
+        if (nextAct && nextAct.id !== activeActForAnswer.id) {
+          activeActForAnswer = nextAct;
+          session.currentActivityId = activeActForAnswer.id;
+          session.currentTopic = activeActForAnswer.topic;
+          nextQ =
+            activeActForAnswer.questions.find(
+              (q) => !session.answeredQuestionIds.includes(q.id)
+            ) || activeActForAnswer.questions[0];
+        } else {
+          activeActForAnswer.questions.forEach((q) => {
+            const idx = session.answeredQuestionIds.indexOf(q.id);
+            if (idx > -1) session.answeredQuestionIds.splice(idx, 1);
+          });
+          nextQ = activeActForAnswer.questions[0];
+        }
+      }
+
+      session.currentQuestionId = nextQ.id;
+
+      const nextOptions =
+        nextQ.options?.map((opt, idx) => ({
+          id: `opt-${idx}`,
+          label: opt,
+          value: opt,
+        })) || [];
+
+      activityDisplay = {
+        activityId: activeActForAnswer.id,
+        questionId: nextQ.id,
+        question: nextQ.text,
+        imageHint: nextQ.imageHint,
+        options: nextOptions,
+        topic: activeActForAnswer.topic,
+        level: session.currentLevel,
+        hint: nextQ.hint,
+      };
+
+      quickReplies = nextOptions;
+
+      if (isCorrect) {
+        reply = `Spot on! ⭐ "${activeQForAnswer.correctAnswer}" is correct! 🎉\n\n${generateTopicIntro(
+          activeActForAnswer.topic,
+          session.currentLevel
+        )} Let's try: ${nextQ.text}`;
+      } else {
+        reply = `Good try! 😊 The answer was "${activeQForAnswer.correctAnswer}". Every try helps you learn!\n\n${generateTopicIntro(
+          activeActForAnswer.topic,
+          session.currentLevel
+        )} Let's try: ${nextQ.text}`;
+      }
+    } else if (wantsEasier) {
+      targetMode = 'LEARNING';
+      const easyActivity = getActivityById('l1-colors-1') || getActivityById('l1-animals-1');
+      if (easyActivity) {
+        session.currentActivityId = easyActivity.id;
+        session.currentTopic = easyActivity.topic;
+        const easyQ = easyActivity.questions[0];
+        session.currentQuestionId = easyQ.id;
+
+        const options = easyQ.options?.map((opt, idx) => ({
+          id: `opt-${idx}`,
+          label: opt,
+          value: opt,
+        })) || [];
+
+        activityDisplay = {
+          activityId: easyActivity.id,
+          questionId: easyQ.id,
+          question: easyQ.text,
+          imageHint: easyQ.imageHint,
+          options,
+          topic: easyActivity.topic,
+          level: 1,
+          hint: easyQ.hint,
+        };
+        reply = `Here is a gentle, easier question for you! 🌸 ${easyQ.text}`;
+      } else {
+        reply = "Here is an easier question! 🌸 You can do it!";
+      }
+
+      quickReplies = [
+        { id: 'qr-hint', label: '💡 Give Me a Hint', value: 'give me a hint' },
+        { id: 'qr-break', label: '🌙 Take a Break', value: 'I want a break' },
+        { id: 'qr-try', label: '💪 Try Again', value: 'teach me words' },
+      ];
+    } else if (wantsHint) {
+      let hintText = "Look closely at the pictures and options! You've got this! ⭐";
+      let activeAct = session.currentActivityId ? getActivityById(session.currentActivityId) : undefined;
+      let activeQ = activeAct?.questions.find((q) => q.id === session.currentQuestionId) || activeAct?.questions[0];
+
+      if (activeQ?.hint) {
+        hintText = activeQ.hint;
+      }
+
+      reply = generateHintMessage(hintText);
+
+      if (activeAct && activeQ) {
+        const options = activeQ.options?.map((opt, idx) => ({
+          id: `opt-${idx}`,
+          label: opt,
+          value: opt,
+        })) || [];
+
+        activityDisplay = {
+          activityId: activeAct.id,
+          questionId: activeQ.id,
+          question: activeQ.text,
+          imageHint: activeQ.imageHint,
+          options,
+          topic: activeAct.topic,
+          level: session.currentLevel,
+          hint: activeQ.hint,
+        };
+      }
+
+      quickReplies = [
+        { id: 'qr-easier', label: '🌸 Easier Question', value: 'give me an easier question' },
+        { id: 'qr-try', label: '💪 Let\'s Try', value: 'teach me' },
+        { id: 'qr-break', label: '🌙 Take a Break', value: 'I want a break' },
+      ];
+    } else if (targetMode === 'LEARNING') {
       // Find or continue activity
       let activity = session.currentActivityId
         ? getActivityById(session.currentActivityId)
         : undefined;
 
-      // If no activity or current completed, get next
+      // If no activity or switching topics, get next
       if (!activity) {
         activity = getNextActivity(
           session.currentLevel,
@@ -120,15 +321,46 @@ export async function POST(req: Request) {
         );
       }
 
+      // Fallback if completed or not found
+      if (!activity) {
+        activity = getActivityById('l1-objects-1') || getActivityById('l1-colors-1');
+      }
+
       if (activity) {
         session.currentActivityId = activity.id;
         session.currentTopic = activity.topic;
 
         // Pick next question not yet answered in this session
-        const unansweredQuestion =
-          activity.questions.find(
-            (q) => !session?.answeredQuestionIds.includes(q.id)
-          ) || activity.questions[0];
+        let unansweredQuestion = activity.questions.find(
+          (q) => !session?.answeredQuestionIds.includes(q.id)
+        );
+
+        // If all questions in this activity are answered, advance to next activity!
+        if (!unansweredQuestion) {
+          if (!session.completedActivities.includes(activity.id)) {
+            session.completedActivities.push(activity.id);
+          }
+          const nextAct = getNextActivity(
+            session.currentLevel,
+            session.completedActivities,
+            session.currentTopic
+          );
+          if (nextAct && nextAct.id !== activity.id) {
+            activity = nextAct;
+            session.currentActivityId = activity.id;
+            session.currentTopic = activity.topic;
+            unansweredQuestion = activity.questions.find(
+              (q) => !session?.answeredQuestionIds.includes(q.id)
+            ) || activity.questions[0];
+          } else {
+            // Recycle questions for continuous fun practice
+            activity.questions.forEach((q) => {
+              const idx = session.answeredQuestionIds.indexOf(q.id);
+              if (idx > -1) session.answeredQuestionIds.splice(idx, 1);
+            });
+            unansweredQuestion = activity.questions[0];
+          }
+        }
 
         session.currentQuestionId = unansweredQuestion.id;
 
@@ -152,11 +384,11 @@ export async function POST(req: Request) {
           hint: unansweredQuestion.hint,
         };
       } else {
-        // All activities for this level completed!
         reply = `Superstar! 🌟 You've explored so many activities in Level ${session.currentLevel}! Would you like to practice again or explore something fun?`;
         quickReplies = [
-          { id: 'qr-colors', label: '🎨 Practice Colors', value: 'teach me colors' },
+          { id: 'qr-words', label: '🪑 Learn Words', value: 'teach me words' },
           { id: 'qr-animals', label: '🐾 Practice Animals', value: 'teach me animals' },
+          { id: 'qr-colors', label: '🎨 Practice Colors', value: 'teach me colors' },
           { id: 'qr-chat', label: '💬 Let\'s Chat', value: 'tell me a story' },
         ];
       }
@@ -179,31 +411,102 @@ export async function POST(req: Request) {
       ];
     } else if (targetMode === 'SUPPORT') {
       const isSafety = detectionResult.detectedIntent === 'safety';
-      const sel = generateSELResponse({
-        mode: 'SUPPORT',
-        attemptCount: session.attemptCount,
-        hasFrustration: true,
-        hasSafetyConcern: isSafety,
-        isGreeting: false,
-        isReturningFromBreak: false,
-        childMessage: message,
-        currentLevel: session.currentLevel,
-      });
-      reply = sel.message;
+      if (isSafety) {
+        const sel = generateSELResponse({
+          mode: 'SUPPORT',
+          attemptCount: session.attemptCount,
+          hasFrustration: true,
+          hasSafetyConcern: true,
+          isGreeting: false,
+          isReturningFromBreak: false,
+          childMessage: message,
+          currentLevel: session.currentLevel,
+        });
+        reply = sel.message;
+      } else {
+        let activeAct = session.currentActivityId ? getActivityById(session.currentActivityId) : undefined;
+        let activeQ = activeAct?.questions.find((q) => q.id === session.currentQuestionId);
 
-      if (!isSafety) {
+        let clueSnippet = activeQ?.hint ? ` Hint: ${activeQ.hint} 💡` : '';
+        reply = `Take your time, friend! 🤗 Learning takes practice and mistakes are how our brains grow!${clueSnippet} Would you like an easier question or a hint?`;
+
+        if (activeAct && activeQ) {
+          const options = activeQ.options?.map((opt, idx) => ({
+            id: `opt-${idx}`,
+            label: opt,
+            value: opt,
+          })) || [];
+
+          activityDisplay = {
+            activityId: activeAct.id,
+            questionId: activeQ.id,
+            question: activeQ.text,
+            imageHint: activeQ.imageHint,
+            options,
+            topic: activeAct.topic,
+            level: session.currentLevel,
+            hint: activeQ.hint,
+          };
+        }
+
         quickReplies = [
           { id: 'qr-easier', label: '🌸 Easier Question', value: 'give me an easier question' },
+          { id: 'qr-hint', label: '💡 Give Me a Hint', value: 'give me a hint' },
           { id: 'qr-break', label: '🌙 Take a Break', value: 'I want a break' },
-          { id: 'qr-try', label: '💪 Try Again', value: 'teach me' },
+          { id: 'qr-try', label: '💪 Keep Trying', value: 'teach me' },
         ];
       }
     } else if (targetMode === 'ENGAGEMENT') {
-      reply = "Let's play! 🎮 What kind of game would you like?";
+      // Pick a game activity based on topicHint or current topic
+      let gameTopic: LearningTopic = (topicHint as LearningTopic) || session.currentTopic || 'animals';
+      let activity = getNextActivity(session.currentLevel, session.completedActivities, gameTopic);
+      if (!activity) {
+        activity = getActivityById(session.currentActivityId || 'l1-animals-1') || getActivityById('l1-animals-1');
+      }
+
+      if (activity) {
+        session.currentActivityId = activity.id;
+        session.currentTopic = activity.topic;
+
+        let unansweredQuestion = activity.questions.find(
+          (q) => !session?.answeredQuestionIds.includes(q.id)
+        );
+
+        if (!unansweredQuestion) {
+          unansweredQuestion = activity.questions[0];
+        }
+
+        session.currentQuestionId = unansweredQuestion.id;
+
+        const options = unansweredQuestion.options?.map((opt, idx) => ({
+          id: `opt-${idx}`,
+          label: opt,
+          value: opt,
+        })) || [];
+
+        activityDisplay = {
+          activityId: activity.id,
+          questionId: unansweredQuestion.id,
+          question: `🎮 ${unansweredQuestion.text}`,
+          imageHint: unansweredQuestion.imageHint,
+          options,
+          topic: activity.topic,
+          level: session.currentLevel,
+          hint: unansweredQuestion.hint,
+        };
+
+        const topicName = TOPIC_LABELS[activity.topic] || activity.topic;
+        reply = `Game On! 🎮 Let's play the ${topicName} game! ${unansweredQuestion.text}`;
+      } else {
+        reply = "Let's play! 🎮 Choose a game category below!";
+      }
+
       quickReplies = [
-        { id: 'qr-game-colors', label: '🎨 Color Match', value: 'teach me colors' },
         { id: 'qr-game-animals', label: '🐾 Animal Quiz', value: 'teach me animals' },
+        { id: 'qr-game-colors', label: '🎨 Color Match', value: 'teach me colors' },
         { id: 'qr-game-numbers', label: '🔢 Star Counter', value: 'teach me numbers' },
+        { id: 'qr-game-fruits', label: '🍎 Fruit Pop', value: 'teach me fruits' },
+        { id: 'qr-game-words', label: '🪑 Word Hunt', value: 'teach me words' },
       ];
     } else {
       // CONVERSATION mode
@@ -231,9 +534,10 @@ export async function POST(req: Request) {
       }
 
       quickReplies = [
-        { id: 'qr-learn', label: '📚 Learn Words', value: 'teach me' },
+        { id: 'qr-learn', label: '📚 Learn Words', value: 'teach me words' },
         { id: 'qr-joke', label: '😄 Tell a Joke', value: 'tell me a joke' },
         { id: 'qr-story', label: '📖 Tell a Story', value: 'tell me a story' },
+        { id: 'qr-sing', label: '🎵 Sing a Song', value: 'sing a song' },
       ];
     }
 

@@ -13,21 +13,18 @@ import type {
 
 const LEARNING_PATTERNS: RegExp[] = [
   /teach me/i,
+  /want to learn/i,
   /learn/i,
   /practice/i,
   /quiz/i,
   /lesson/i,
-  /what (is|are|does|color)/i,
-  /show me/i,
-  /how (do|does)/i,
-  /can (you|we) (learn|do|try)/i,
-  /level/i,
-  /words/i,
-  /spell/i,
-  /sentence/i,
+  /exercise/i,
   /next (question|activity|lesson)/i,
-  /start (learning|lesson)/i,
-  /animals|colors|numbers|fruits|family/i,
+  /easier (question|one)/i,
+  /give me (an? )?(easier|new|next)/i,
+  /start (learning|lesson|quiz)/i,
+  /test me/i,
+  /another question/i,
 ];
 
 const ENGAGEMENT_PATTERNS: RegExp[] = [
@@ -39,6 +36,7 @@ const ENGAGEMENT_PATTERNS: RegExp[] = [
   /more/i,
   /again/i,
   /another/i,
+  /puzzle/i,
 ];
 
 const SUPPORT_PATTERNS: RegExp[] = [
@@ -48,6 +46,7 @@ const SUPPORT_PATTERNS: RegExp[] = [
   /difficult/i,
   /confused/i,
   /help/i,
+  /need help/i,
   /stuck/i,
   /frustrated/i,
   /don't get it/i,
@@ -61,6 +60,8 @@ const SUPPORT_PATTERNS: RegExp[] = [
   /mad/i,
   /not (happy|good|okay)/i,
   /feel (bad|sad|angry|mad)/i,
+  /give me a hint/i,
+  /i need some help/i,
 ];
 
 const BREAK_PATTERNS: RegExp[] = [
@@ -79,12 +80,22 @@ const BREAK_PATTERNS: RegExp[] = [
 ];
 
 const CONVERSATION_PATTERNS: RegExp[] = [
-  /tell me (about|a story)/i,
-  /what('s| is) your (favorite|name)/i,
+  /\?/i,
+  /^(can|could|do|does|did|will|would|is|are|should|may|have|has)\b/i,
+  /^(what|why|how|who|where|when)\b/i,
+  /tell me/i,
+  /what('s| is) your/i,
+  /what (is|are|does|can|do|color)/i,
+  /why/i,
+  /how (do|does|can|come|are)/i,
+  /who (is|are)/i,
+  /where (is|are|do)/i,
+  /spell/i,
+  /sing|rhyme|song/i,
   /do you (like|love|have)/i,
-  /can you tell/i,
+  /can you/i,
   /favorite/i,
-  /hello|hi|hey/i,
+  /hello|hi|hey|hiya|howdy/i,
   /how are you/i,
   /good (morning|afternoon|evening|night)/i,
   /story/i,
@@ -93,6 +104,12 @@ const CONVERSATION_PATTERNS: RegExp[] = [
   /talk/i,
   /chat/i,
   /friend/i,
+  /kemon|bhalo|naam|bondhu|dhonnobad/i,
+  /are you/i,
+  /thank you|thanks/i,
+  /love you/i,
+  /my name is/i,
+  /years old/i,
 ];
 
 // ─── Safety Patterns ───────────────────────────────────────
@@ -193,7 +210,7 @@ function detectModeFromPatterns(message: string): ModeDetectionResult | null {
   if (convScore >= 1) {
     return {
       mode: 'CONVERSATION',
-      confidence: convScore >= 2 ? 'high' : 'medium',
+      confidence: 'high',
       method: 'deterministic',
       detectedIntent: 'wants_chat',
     };
@@ -220,20 +237,37 @@ function detectModeFromContext(
   message: string,
   context: Partial<SessionContext>
 ): ModeDetectionResult | null {
-  // If currently in an activity, likely continuing learning
-  if (context.currentActivityId && context.currentQuestionId) {
+  const clean = message.trim();
+  const isQuestionOrChat =
+    /\?|^(what|why|how|who|where|when|can\b|do\b|are\b|is\b|will\b|could\b|tell\b)/i.test(
+      clean
+    );
+
+  // If the child is asking a question or talking, NEVER hijack it into learning mode!
+  if (isQuestionOrChat) {
     return {
-      mode: 'LEARNING',
-      confidence: 'medium',
+      mode: 'CONVERSATION',
+      confidence: 'high',
       method: 'contextual',
-      detectedIntent: 'activity_continuation',
+      detectedIntent: 'child_question',
     };
+  }
+
+  // If currently in an activity, only infer learning continuation if it's a short answer attempt
+  if (context.currentActivityId && context.currentQuestionId) {
+    if (clean.split(/\s+/).length <= 4) {
+      return {
+        mode: 'LEARNING',
+        confidence: 'medium',
+        method: 'contextual',
+        detectedIntent: 'short_learning_response',
+      };
+    }
   }
 
   // If recent mode was LEARNING and no clear break signal
   if (context.currentMode === 'LEARNING') {
-    // Short messages in learning context are likely answers
-    if (message.trim().split(' ').length <= 3) {
+    if (clean.split(/\s+/).length <= 3) {
       return {
         mode: 'LEARNING',
         confidence: 'low',
@@ -355,10 +389,12 @@ export function extractTopicFromMessage(message: string): string | undefined {
   const topicPatterns: [RegExp, string][] = [
     [/color|colour/i, 'colors'],
     [/animal/i, 'animals'],
-    [/number|count/i, 'numbers'],
-    [/fruit/i, 'fruits'],
-    [/family/i, 'family'],
-    [/object|thing/i, 'objects'],
+    [/number|count|counting|star/i, 'numbers'],
+    [/fruit|food/i, 'fruits'],
+    [/family|mom|dad|sister|brother/i, 'family'],
+    [/word|words|object|thing|things|vocab/i, 'objects'],
+    [/phrase/i, 'phrases'],
+    [/sentence/i, 'sentences'],
   ];
 
   for (const [pattern, topic] of topicPatterns) {

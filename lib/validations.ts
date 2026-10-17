@@ -15,18 +15,28 @@ export const ChatRequestSchema = z.object({
   answerId: z.string().max(100).optional(),
 });
 
-export const AnswerRequestSchema = z.object({
-  sessionId: z.string().min(1, 'Session ID is required').max(100),
-  profileId: z.string().min(1, 'Profile ID is required').max(100),
-  activityId: z.string().min(1, 'Activity ID is required').max(100),
-  questionId: z.string().min(1, 'Question ID is required').max(100),
-  answer: z
-    .string()
-    .trim()
-    .min(1, 'Answer cannot be empty')
-    .max(300, 'Answer too long'),
-  answerId: z.string().min(1, 'Answer ID (idempotency key) is required').max(100),
-});
+export const AnswerRequestSchema = z
+  .object({
+    sessionId: z.string().min(1, 'Session ID is required').max(100),
+    profileId: z.string().min(1, 'Profile ID is required').max(100),
+    activityId: z.string().min(1, 'Activity ID is required').max(100),
+    questionId: z.string().min(1, 'Question ID is required').max(100),
+    answer: z.string().trim().max(300).optional(),
+    selectedAnswer: z.string().trim().max(300).optional(),
+    selectedOption: z.string().trim().max(300).optional(),
+    answerId: z.string().max(100).optional(),
+  })
+  .transform((data) => ({
+    ...data,
+    answer: (data.answer || data.selectedAnswer || data.selectedOption || '').trim(),
+    answerId:
+      data.answerId ||
+      `ans_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+  }))
+  .refine((data) => data.answer.length > 0, {
+    message: 'Answer cannot be empty',
+    path: ['answer'],
+  });
 
 export const SessionResetSchema = z.object({
   sessionId: z.string().min(1, 'Session ID is required').max(100),

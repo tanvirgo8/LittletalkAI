@@ -44,7 +44,7 @@ export default function HomePage() {
 
   // Learning State
   const [level, setLevel] = useState<LearningLevel>(1);
-  const [mode, setMode] = useState<ConversationMode>('LEARNING');
+  const [mode, setMode] = useState<ConversationMode>('CONVERSATION');
   const [stars, setStars] = useState<number>(0);
   const [progressSummary, setProgressSummary] = useState<ProgressSummary>({
     totalAnswered: 0,
@@ -158,7 +158,7 @@ export default function HomePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: 'Hello Lumi! Teach me words!',
+          message: "Hello Lumi! Let's chat!",
           sessionId: sId,
           profileId: pId,
         }),
@@ -250,12 +250,34 @@ export default function HomePage() {
       if (data.quickReplies) setQuickReplies(data.quickReplies);
       if (data.timings) setLastLatencyMs(data.timings.totalMs);
 
+      // Check if this response scored a quiz answer
+      if (data.reply.includes('correct!') || data.reply.includes('Spot on!')) {
+        try { soundFX.playCorrectChime(); } catch {}
+        try {
+          confetti({
+            particleCount: 50,
+            spread: 60,
+            origin: { y: 0.6 },
+            colors: ['#FFD54F', '#FFA000', '#4DD9AC', '#42BFF5', '#FF7B6B'],
+          });
+        } catch {}
+        setMascotState('cheering');
+        setTimeout(() => setMascotState('idle'), 2500);
+      } else if (data.reply.includes('Good try!')) {
+        try { soundFX.playGentleTryAgain(); } catch {}
+      }
+
+      if (data.progressUpdate?.totalStars !== undefined) {
+        setStars(data.progressUpdate.totalStars);
+      }
+      fetchProgress(sessionId, profileId);
+
       // Adjust mascot state
       if (data.mode === 'BREAK') {
         setMascotState('sleeping');
       } else if (data.mode === 'SUPPORT') {
         setMascotState('idle');
-      } else {
+      } else if (!data.reply.includes('correct!') && !data.reply.includes('Spot on!')) {
         setMascotState('idle');
       }
 
@@ -298,7 +320,10 @@ export default function HomePage() {
         }),
       });
 
-      if (!res.ok) throw new Error('Answer submission failed');
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson?.error || `Answer submission failed with status ${res.status}`);
+      }
 
       const data: AnswerResponse = await res.json();
 
@@ -442,8 +467,9 @@ export default function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 items-start">
           {/* Left Panel: Active Activity or Mascot Spotlight */}
           <div className="lg:col-span-7 flex flex-col justify-center">
-            {mode === 'LEARNING' && currentActivity ? (
+            {(mode === 'LEARNING' || mode === 'ENGAGEMENT' || (mode === 'SUPPORT' && currentActivity)) && currentActivity ? (
               <ActivityCard
+                key={currentActivity.questionId}
                 activity={currentActivity}
                 onAnswer={handleAnswerSubmit}
                 onNextQuestion={handleNextQuestion}
@@ -481,7 +507,7 @@ export default function HomePage() {
 
                 {mode !== 'LEARNING' && (
                   <button
-                    onClick={() => handleSelectMode('LEARNING', 'teach me')}
+                    onClick={() => handleSelectMode('LEARNING', 'teach me words')}
                     className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-base px-6 py-3 rounded-2xl shadow-md transition-all active:scale-95 cursor-pointer mt-2"
                   >
                     <span>Back to Learning Words</span>

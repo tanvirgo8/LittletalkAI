@@ -25,6 +25,24 @@ export type LearningTopic =
   | 'sentences'
   | 'conversation';
 
+export const TOPIC_LABELS: Record<LearningTopic, string> = {
+  colors: '🎨 Colors',
+  animals: '🐾 Animals',
+  numbers: '🔢 Numbers',
+  fruits: '🍎 Fruits',
+  family: '👨‍👩‍👧 Family',
+  objects: '🪑 Objects',
+  phrases: '💬 Phrases',
+  sentences: '📝 Sentences',
+  conversation: '🗣️ Conversation',
+};
+
+export const LEVEL_DESCRIPTIONS: Record<LearningLevel, string> = {
+  1: 'Words & Pictures',
+  2: 'Short Phrases',
+  3: 'Sentences & Chat',
+};
+
 // ─── Activity Types ────────────────────────────────────────
 export type ActivityType =
   | 'multiple_choice'

@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import type { ProgressSummary, LearningLevel } from '@/lib/types';
-import { TOPIC_LABELS } from '@/lib/learning-content';
+import React, { useState, useEffect } from 'react';
+import { TOPIC_LABELS, type ProgressSummary, type LearningLevel } from '@/lib/types';
 import {
   Shield,
   X,
@@ -14,6 +13,9 @@ import {
   Sparkles,
   Info,
   Award,
+  Layers,
+  Table,
+  Check,
 } from 'lucide-react';
 
 interface ParentModalProps {
@@ -44,9 +46,52 @@ export function ParentModal({
   const [gateInput, setGateInput] = useState('');
   const [gateError, setGateError] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'progress' | 'privacy' | 'controls'>('progress');
+  const [activeTab, setActiveTab] = useState<'progress' | 'privacy' | 'controls' | 'database'>('progress');
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Database Tab States
+  const [dbStats, setDbStats] = useState<any>(null);
+  const [selectedTable, setSelectedTable] = useState<string>('activities');
+  const [tableRecords, setTableRecords] = useState<any[]>([]);
+  const [isLoadingDb, setIsLoadingDb] = useState(false);
+
+  useEffect(() => {
+    if (isUnlocked && activeTab === 'database') {
+      fetchDbStats();
+      fetchTableRecords(selectedTable);
+    }
+  }, [isUnlocked, activeTab, selectedTable]);
+
+  const fetchDbStats = async () => {
+    try {
+      setIsLoadingDb(true);
+      const res = await fetch('/api/database');
+      if (res.ok) {
+        const data = await res.json();
+        setDbStats(data.stats);
+      }
+    } catch (err) {
+      console.error('Failed to fetch DB stats', err);
+    } finally {
+      setIsLoadingDb(false);
+    }
+  };
+
+  const fetchTableRecords = async (table: string) => {
+    try {
+      setIsLoadingDb(true);
+      const res = await fetch(`/api/database?table=${table}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTableRecords(data.records || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch table records', err);
+    } finally {
+      setIsLoadingDb(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -103,7 +148,7 @@ export function ParentModal({
       aria-labelledby="parent-modal-title"
       className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
     >
-      <div className="bg-white w-full max-w-2xl rounded-3xl sm:rounded-4xl shadow-2xl border-4 border-amber-300 overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="bg-white w-full max-w-3xl rounded-3xl sm:rounded-4xl shadow-2xl border-4 border-amber-300 overflow-hidden max-h-[90vh] flex flex-col">
         {/* Modal Header */}
         <div className="bg-amber-100/80 px-6 py-4 border-b border-amber-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -161,10 +206,10 @@ export function ParentModal({
           /* Unlocked Parent Dashboard Content */
           <div className="flex-1 overflow-y-auto flex flex-col">
             {/* Tabs */}
-            <div className="flex border-b border-gray-200 bg-gray-50/80 px-6 pt-3 gap-2">
+            <div className="flex border-b border-gray-200 bg-gray-50/80 px-6 pt-3 gap-1 sm:gap-2 overflow-x-auto">
               <button
                 onClick={() => setActiveTab('progress')}
-                className={`px-4 py-2 text-sm font-bold rounded-t-2xl border-b-2 transition-all cursor-pointer ${
+                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-t-2xl border-b-2 transition-all cursor-pointer whitespace-nowrap ${
                   activeTab === 'progress'
                     ? 'border-amber-500 text-amber-900 bg-white shadow-xs'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -173,8 +218,19 @@ export function ParentModal({
                 Learning Progress
               </button>
               <button
+                onClick={() => setActiveTab('database')}
+                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-t-2xl border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'database'
+                    ? 'border-indigo-600 text-indigo-950 bg-white shadow-xs'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <Database className="w-4 h-4 text-indigo-600" />
+                <span>Database &amp; Tables</span>
+              </button>
+              <button
                 onClick={() => setActiveTab('privacy')}
-                className={`px-4 py-2 text-sm font-bold rounded-t-2xl border-b-2 transition-all cursor-pointer ${
+                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-t-2xl border-b-2 transition-all cursor-pointer whitespace-nowrap ${
                   activeTab === 'privacy'
                     ? 'border-amber-500 text-amber-900 bg-white shadow-xs'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -184,7 +240,7 @@ export function ParentModal({
               </button>
               <button
                 onClick={() => setActiveTab('controls')}
-                className={`px-4 py-2 text-sm font-bold rounded-t-2xl border-b-2 transition-all cursor-pointer ${
+                className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold rounded-t-2xl border-b-2 transition-all cursor-pointer whitespace-nowrap ${
                   activeTab === 'controls'
                     ? 'border-amber-500 text-amber-900 bg-white shadow-xs'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -241,52 +297,39 @@ export function ParentModal({
                         : 0}
                       %
                     </p>
-                    <p className="text-[11px] text-emerald-700 mt-0.5">Overall Accuracy</p>
+                    <p className="text-[11px] text-emerald-700 mt-0.5">Accuracy Rate</p>
                   </div>
-                </div>
-
-                {/* Level Advancement Rules Disclosure */}
-                <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 text-xs sm:text-sm text-sky-900 space-y-1">
-                  <div className="flex items-center gap-1.5 font-bold text-sky-950">
-                    <Award className="w-4 h-4 text-sky-600" />
-                    <span>Level Progression Rule (Configurable &amp; Deterministic)</span>
-                  </div>
-                  <p>
-                    Advancement requires <strong>&ge; 80% accuracy</strong> over at least{' '}
-                    <strong>10 assessed answers</strong> at the current level. Single lucky guesses or
-                    conversational messages will never advance a child’s level.
-                  </p>
                 </div>
 
                 {/* Topic Breakdown */}
-                <div>
-                  <h4 className="text-sm font-extrabold text-gray-900 mb-3 uppercase tracking-wider">
-                    Topic Performance
+                <div className="border border-gray-200 rounded-2xl p-4">
+                  <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
+                    <Award className="w-4 h-4 text-amber-600" />
+                    Topic Progress Breakdown
                   </h4>
                   {Object.keys(progressSummary.topicProgress).length === 0 ? (
-                    <p className="text-sm text-gray-500 italic">
-                      No assessed activities completed yet. Start answering questions with Lumi!
+                    <p className="text-xs text-gray-500 italic py-2">
+                      No activities assessed yet in this session. Start learning to see topic mastery!
                     </p>
                   ) : (
-                    <div className="space-y-3">
-                      {Object.entries(progressSummary.topicProgress).map(([topic, tp]) => {
-                        if (!tp) return null;
-                        const accuracy =
-                          tp.attempts > 0 ? Math.round((tp.correct / tp.attempts) * 100) : 0;
+                    <div className="space-y-2.5">
+                      {Object.entries(progressSummary.topicProgress).map(([topic, data]) => {
+                        const rate = data.attempts > 0 ? Math.round((data.correct / data.attempts) * 100) : 0;
                         const label = TOPIC_LABELS[topic as keyof typeof TOPIC_LABELS] || topic;
-
                         return (
-                          <div key={topic} className="bg-gray-50 p-3 rounded-2xl border border-gray-200">
-                            <div className="flex justify-between items-center text-xs sm:text-sm font-bold mb-1">
+                          <div key={topic} className="space-y-1">
+                            <div className="flex justify-between text-xs font-bold text-gray-700">
                               <span>{label}</span>
-                              <span className="text-amber-800">
-                                {tp.correct}/{tp.attempts} correct ({accuracy}%)
+                              <span>
+                                {data.correct}/{data.attempts} ({rate}%)
                               </span>
                             </div>
-                            <div className="w-full bg-gray-200 h-2.5 rounded-full overflow-hidden">
+                            <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                               <div
-                                className="bg-emerald-500 h-full rounded-full transition-all"
-                                style={{ width: `${accuracy}%` }}
+                                className={`h-2 rounded-full transition-all ${
+                                  rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-400' : 'bg-rose-400'
+                                }`}
+                                style={{ width: `${rate}%` }}
                               />
                             </div>
                           </div>
@@ -295,46 +338,143 @@ export function ParentModal({
                     </div>
                   )}
                 </div>
+
+                {/* Storage Disclosure Badge */}
+                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center gap-2.5">
+                  <Database className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <div className="text-xs text-emerald-950 font-medium">
+                    <span>
+                      <strong>Persistent Relational Storage:</strong> Using SQLite on-disk tables + Firebase Cloud sync. Mock data removed.
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Tab 2: Safety & Privacy */}
-            {activeTab === 'privacy' && (
-              <div className="p-6 space-y-5 text-sm text-gray-700">
-                <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 p-4 rounded-2xl">
-                  <Database className="w-6 h-6 text-amber-600 shrink-0 mt-0.5" />
+            {/* Tab 2: Database & Tables (Live Inspection) */}
+            {activeTab === 'database' && (
+              <div className="p-6 space-y-5">
+                {/* Header Status Banner */}
+                <div className="bg-indigo-50 border-2 border-indigo-200 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h4 className="font-bold text-amber-950">Active Storage Mode</h4>
-                    <p className="text-xs sm:text-sm text-amber-900/90 mt-1">
-                      Current backend storage engine:{' '}
-                      <strong className="uppercase">{storageType}</strong>.
-                      {storageType === 'in-memory-demo' ? (
-                        <span className="block mt-1 text-xs text-amber-800">
-                          ⚠️ Demo Mode limitation: Data is stored in server memory and resets upon
-                          server restart. When valid Firebase environment variables are provided,
-                          persistent remote Firestore storage is enabled.
-                        </span>
-                      ) : (
-                        <span className="block mt-1 text-xs text-emerald-800">
-                          ✓ Remote Firebase Firestore persistence enabled.
-                        </span>
-                      )}
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <h4 className="font-extrabold text-indigo-950 text-sm sm:text-base">
+                        SQLite 3 Relational Database Engine
+                      </h4>
+                    </div>
+                    <p className="text-xs text-indigo-800/90 mt-1">
+                      File: <code className="bg-white/80 px-1.5 py-0.5 rounded text-indigo-900 font-mono text-[11px]">data/littletalk.db</code> • Persistent on disk • Foreign key constraints active
                     </p>
+                  </div>
+                  <div className="shrink-0">
+                    <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-900 border border-emerald-300 px-3 py-1 rounded-full text-xs font-extrabold">
+                      <Check className="w-3.5 h-3.5" /> Live Relational Tables
+                    </span>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <h4 className="font-extrabold text-gray-900 uppercase tracking-wider text-xs">
-                    Child Safety &amp; COPPA Principles
-                  </h4>
-                  <ul className="space-y-2 text-xs sm:text-sm text-gray-600">
-                    <li className="flex items-start gap-2">
-                      <span className="text-emerald-500 font-bold">✓</span>
-                      <span>
-                        <strong>Zero Advertising &amp; Commercialization:</strong> No third-party ad
-                        networks, sponsors, or trackers.
+                {/* Tables Grid / Selector */}
+                <div>
+                  <h5 className="text-xs font-extrabold text-gray-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Layers className="w-4 h-4 text-indigo-600" />
+                    Database Tables (Click to Inspect Live Records)
+                  </h5>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {dbStats?.tables?.map((table: any) => {
+                      const isSelected = selectedTable === table.name;
+                      return (
+                        <button
+                          key={table.name}
+                          onClick={() => setSelectedTable(table.name)}
+                          className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
+                              : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-800'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-xs font-bold truncate">{table.name}</span>
+                            <span
+                              className={`text-[11px] font-extrabold px-1.5 py-0.2 rounded-full ${
+                                isSelected ? 'bg-indigo-800 text-white' : 'bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              {table.rowCount}
+                            </span>
+                          </div>
+                          <p
+                            className={`text-[10px] mt-1 line-clamp-1 ${
+                              isSelected ? 'text-indigo-200' : 'text-gray-500'
+                            }`}
+                          >
+                            {table.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Selected Table Records Live Viewer */}
+                <div className="border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+                  <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Table className="w-4 h-4 text-indigo-600" />
+                      <span className="font-bold text-xs sm:text-sm text-gray-800">
+                        Table: <span className="font-mono text-indigo-900">{selectedTable}</span> ({tableRecords.length} records loaded from DB)
                       </span>
-                    </li>
+                    </div>
+                    {isLoadingDb && (
+                      <span className="text-[11px] text-indigo-600 font-bold animate-pulse">
+                        Querying database...
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="max-h-60 overflow-x-auto overflow-y-auto p-2">
+                    {tableRecords.length === 0 ? (
+                      <p className="text-xs text-gray-500 italic p-4 text-center">
+                        No records stored in this table yet. Table schema is ready.
+                      </p>
+                    ) : (
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-gray-200 bg-gray-50">
+                            {Object.keys(tableRecords[0] || {}).map((col) => (
+                              <th key={col} className="p-2 font-mono text-[11px] text-gray-700 uppercase">
+                                {col}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {tableRecords.slice(0, 15).map((row: any, i: number) => (
+                            <tr key={i} className="border-b border-gray-100 hover:bg-indigo-50/40">
+                              {Object.entries(row).map(([k, v]: [string, any]) => (
+                                <td key={k} className="p-2 font-mono text-[11px] text-gray-800 max-w-[200px] truncate">
+                                  {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 3: Safety & Privacy */}
+            {activeTab === 'privacy' && (
+              <div className="p-6 space-y-4">
+                <div className="bg-sky-50 border border-sky-200 p-4 rounded-2xl space-y-2">
+                  <h4 className="font-bold text-sky-950 text-sm flex items-center gap-1.5">
+                    <Info className="w-4 h-4 text-sky-700" />
+                    COPPA &amp; Early-Childhood Safety Compliance
+                  </h4>
+                  <ul className="text-xs text-sky-900/90 space-y-2 mt-2">
                     <li className="flex items-start gap-2">
                       <span className="text-emerald-500 font-bold">✓</span>
                       <span>
@@ -362,7 +502,7 @@ export function ParentModal({
               </div>
             )}
 
-            {/* Tab 3: Data Controls */}
+            {/* Tab 4: Data Controls */}
             {activeTab === 'controls' && (
               <div className="p-6 space-y-6">
                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">

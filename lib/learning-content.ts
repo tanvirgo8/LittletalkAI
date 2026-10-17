@@ -1,681 +1,75 @@
 // ============================================================
-// LittleTalk AI - Learning Content Database
-// All activities for L1, L2, L3
+// LittleTalk AI - Relational Database Curriculum Content
+// Connected to SQLite Database Tables (activities & questions)
+// Mock data removed — all records served from persistent DB tables
 // ============================================================
 import type { Activity, LearningLevel, LearningTopic } from './types';
+import {
+  getAllActivitiesFromDb,
+  getActivityByIdFromDb,
+  getActivitiesByLevelFromDb,
+  getActivitiesByTopicFromDb,
+  getNextActivityFromDb,
+  getReviewActivityFromDb,
+} from './sqlite-db';
 
-// ─── Level 1: Vocabulary Activities ───────────────────────
+/**
+ * Data source declaration
+ */
+export const DATA_SOURCE = 'DATABASE_TABLES';
 
-const COLORS_ACTIVITIES: Activity[] = [
-  {
-    id: 'l1-colors-1',
-    type: 'multiple_choice',
-    topic: 'colors',
-    level: 1,
-    title: 'What Color Is It?',
-    questions: [
-      {
-        id: 'l1-c1-q1',
-        text: 'What color is the banana? 🍌',
-        imageHint: '🍌',
-        options: ['Yellow', 'Blue', 'Green'],
-        correctAnswer: 'Yellow',
-        hint: 'Bananas are bright and sunny!',
-      },
-      {
-        id: 'l1-c1-q2',
-        text: 'What color is the sky? ☁️',
-        imageHint: '☁️',
-        options: ['Red', 'Blue', 'Pink'],
-        correctAnswer: 'Blue',
-        hint: 'Look up at a clear day!',
-      },
-      {
-        id: 'l1-c1-q3',
-        text: 'What color is a strawberry? 🍓',
-        imageHint: '🍓',
-        options: ['Orange', 'Purple', 'Red'],
-        correctAnswer: 'Red',
-        hint: 'Strawberries are sweet and this color!',
-      },
-      {
-        id: 'l1-c1-q4',
-        text: 'What color is grass? 🌿',
-        imageHint: '🌿',
-        options: ['Yellow', 'Green', 'Brown'],
-        correctAnswer: 'Green',
-        hint: 'Grass grows in the garden!',
-      },
-      {
-        id: 'l1-c1-q5',
-        text: 'What color is an orange? 🍊',
-        imageHint: '🍊',
-        options: ['Orange', 'Yellow', 'Red'],
-        correctAnswer: 'Orange',
-        hint: 'This fruit shares its name with its color!',
-      },
-    ],
-  },
-  {
-    id: 'l1-colors-2',
-    type: 'multiple_choice',
-    topic: 'colors',
-    level: 1,
-    title: 'More Colors!',
-    questions: [
-      {
-        id: 'l1-c2-q1',
-        text: 'What color is snow? ❄️',
-        imageHint: '❄️',
-        options: ['White', 'Gray', 'Silver'],
-        correctAnswer: 'White',
-        hint: 'Snow is very bright!',
-      },
-      {
-        id: 'l1-c2-q2',
-        text: 'What color is a pumpkin? 🎃',
-        imageHint: '🎃',
-        options: ['Yellow', 'Orange', 'Brown'],
-        correctAnswer: 'Orange',
-        hint: 'Pumpkins are for Halloween!',
-      },
-      {
-        id: 'l1-c2-q3',
-        text: 'What color is a violet flower? 🌸',
-        imageHint: '🌸',
-        options: ['Purple', 'Pink', 'Blue'],
-        correctAnswer: 'Purple',
-        hint: 'Violets are this pretty color!',
-      },
-    ],
-  },
-];
+/**
+ * Get all activities directly from SQLite database tables
+ */
+export function getAllActivities(): Activity[] {
+  return getAllActivitiesFromDb();
+}
 
-const ANIMALS_ACTIVITIES: Activity[] = [
-  {
-    id: 'l1-animals-1',
-    type: 'multiple_choice',
-    topic: 'animals',
-    level: 1,
-    title: 'Animal Friends',
-    questions: [
-      {
-        id: 'l1-a1-q1',
-        text: 'Which animal says "meow"? 😺',
-        imageHint: '😺',
-        options: ['Dog', 'Cat', 'Bird'],
-        correctAnswer: 'Cat',
-        hint: 'This animal loves to purr!',
-      },
-      {
-        id: 'l1-a1-q2',
-        text: 'Which animal has a long neck? 🦒',
-        imageHint: '🦒',
-        options: ['Elephant', 'Giraffe', 'Lion'],
-        correctAnswer: 'Giraffe',
-        hint: 'It eats leaves from tall trees!',
-      },
-      {
-        id: 'l1-a1-q3',
-        text: 'Which animal can fly? 🦅',
-        imageHint: '🦅',
-        options: ['Fish', 'Dog', 'Bird'],
-        correctAnswer: 'Bird',
-        hint: 'This animal has feathers and wings!',
-      },
-      {
-        id: 'l1-a1-q4',
-        text: 'Which animal hops and has big ears? 🐰',
-        imageHint: '🐰',
-        options: ['Cat', 'Rabbit', 'Bear'],
-        correctAnswer: 'Rabbit',
-        hint: 'It loves carrots!',
-      },
-      {
-        id: 'l1-a1-q5',
-        text: 'Which animal swims in the ocean? 🐟',
-        imageHint: '🐟',
-        options: ['Horse', 'Fish', 'Cow'],
-        correctAnswer: 'Fish',
-        hint: 'It has fins and gills!',
-      },
-    ],
-  },
-  {
-    id: 'l1-animals-2',
-    type: 'multiple_choice',
-    topic: 'animals',
-    level: 1,
-    title: 'Farm Animals',
-    questions: [
-      {
-        id: 'l1-a2-q1',
-        text: 'Which animal gives us milk? 🐮',
-        imageHint: '🐮',
-        options: ['Pig', 'Cow', 'Sheep'],
-        correctAnswer: 'Cow',
-        hint: 'It says "moo"!',
-      },
-      {
-        id: 'l1-a2-q2',
-        text: 'Which animal lays eggs? 🐔',
-        imageHint: '🐔',
-        options: ['Hen', 'Pig', 'Horse'],
-        correctAnswer: 'Hen',
-        hint: 'This bird lives on a farm!',
-      },
-      {
-        id: 'l1-a2-q3',
-        text: 'Which animal is the king of the jungle? 🦁',
-        imageHint: '🦁',
-        options: ['Tiger', 'Lion', 'Bear'],
-        correctAnswer: 'Lion',
-        hint: 'It has a big mane!',
-      },
-    ],
-  },
-];
+/**
+ * Static-compatible array retrieved dynamically from SQLite
+ */
+export const ALL_ACTIVITIES: Activity[] = getAllActivitiesFromDb();
 
-const NUMBERS_ACTIVITIES: Activity[] = [
-  {
-    id: 'l1-numbers-1',
-    type: 'multiple_choice',
-    topic: 'numbers',
-    level: 1,
-    title: 'Count With Me!',
-    questions: [
-      {
-        id: 'l1-n1-q1',
-        text: 'How many stars? ⭐⭐⭐',
-        imageHint: '⭐⭐⭐',
-        options: ['Two', 'Three', 'Four'],
-        correctAnswer: 'Three',
-        hint: 'Count each star: one, two, ...',
-      },
-      {
-        id: 'l1-n1-q2',
-        text: 'How many apples? 🍎🍎',
-        imageHint: '🍎🍎',
-        options: ['One', 'Two', 'Three'],
-        correctAnswer: 'Two',
-        hint: 'Count the apples!',
-      },
-      {
-        id: 'l1-n1-q3',
-        text: 'How many balloons? 🎈🎈🎈🎈🎈',
-        imageHint: '🎈🎈🎈🎈🎈',
-        options: ['Four', 'Five', 'Six'],
-        correctAnswer: 'Five',
-        hint: 'Count carefully!',
-      },
-      {
-        id: 'l1-n1-q4',
-        text: 'What number comes after 3?',
-        imageHint: '1️⃣2️⃣3️⃣❓',
-        options: ['2', '4', '5'],
-        correctAnswer: '4',
-        hint: 'Count up from 3!',
-      },
-      {
-        id: 'l1-n1-q5',
-        text: 'How many fingers on one hand? 🖐️',
-        imageHint: '🖐️',
-        options: ['Four', 'Five', 'Six'],
-        correctAnswer: 'Five',
-        hint: 'Hold up your hand and count!',
-      },
-    ],
-  },
-];
-
-const FRUITS_ACTIVITIES: Activity[] = [
-  {
-    id: 'l1-fruits-1',
-    type: 'multiple_choice',
-    topic: 'fruits',
-    level: 1,
-    title: 'Yummy Fruits!',
-    questions: [
-      {
-        id: 'l1-f1-q1',
-        text: 'What fruit is yellow and curved? 🍌',
-        imageHint: '🍌',
-        options: ['Apple', 'Banana', 'Grapes'],
-        correctAnswer: 'Banana',
-        hint: 'Monkeys love this fruit!',
-      },
-      {
-        id: 'l1-f1-q2',
-        text: 'What fruit is red and round? 🍎',
-        imageHint: '🍎',
-        options: ['Apple', 'Pear', 'Peach'],
-        correctAnswer: 'Apple',
-        hint: 'An apple a day keeps the doctor away!',
-      },
-      {
-        id: 'l1-f1-q3',
-        text: 'What fruit is purple and grows in bunches? 🍇',
-        imageHint: '🍇',
-        options: ['Plum', 'Grapes', 'Blueberries'],
-        correctAnswer: 'Grapes',
-        hint: 'You pick them bunch by bunch!',
-      },
-      {
-        id: 'l1-f1-q4',
-        text: 'What big green fruit has red inside? 🍉',
-        imageHint: '🍉',
-        options: ['Melon', 'Watermelon', 'Cucumber'],
-        correctAnswer: 'Watermelon',
-        hint: 'It\'s a summer treat!',
-      },
-      {
-        id: 'l1-f1-q5',
-        text: 'What orange fruit is a citrus fruit? 🍊',
-        imageHint: '🍊',
-        options: ['Lemon', 'Orange', 'Tangerine'],
-        correctAnswer: 'Orange',
-        hint: 'Its name is also a color!',
-      },
-    ],
-  },
-];
-
-const FAMILY_ACTIVITIES: Activity[] = [
-  {
-    id: 'l1-family-1',
-    type: 'multiple_choice',
-    topic: 'family',
-    level: 1,
-    title: 'My Family',
-    questions: [
-      {
-        id: 'l1-fam1-q1',
-        text: 'Who is your mom\'s mom? 👵',
-        imageHint: '👵',
-        options: ['Aunt', 'Grandma', 'Sister'],
-        correctAnswer: 'Grandma',
-        hint: 'She is your mom\'s mommy!',
-      },
-      {
-        id: 'l1-fam1-q2',
-        text: 'What do you call your mom\'s brother? 👨',
-        imageHint: '👨',
-        options: ['Uncle', 'Dad', 'Brother'],
-        correctAnswer: 'Uncle',
-        hint: 'He is your parent\'s brother!',
-      },
-      {
-        id: 'l1-fam1-q3',
-        text: 'What is a girl with the same parents called? 👧',
-        imageHint: '👧',
-        options: ['Cousin', 'Sister', 'Friend'],
-        correctAnswer: 'Sister',
-        hint: 'She is part of your family!',
-      },
-      {
-        id: 'l1-fam1-q4',
-        text: 'Who takes care of you at home? 👨‍👩‍👧',
-        imageHint: '👨‍👩‍👧',
-        options: ['Teacher', 'Parents', 'Neighbor'],
-        correctAnswer: 'Parents',
-        hint: 'Mommy and Daddy!',
-      },
-      {
-        id: 'l1-fam1-q5',
-        text: 'What is an older boy in your family called? 👦',
-        imageHint: '👦',
-        options: ['Brother', 'Cousin', 'Friend'],
-        correctAnswer: 'Brother',
-        hint: 'He is your family!',
-      },
-    ],
-  },
-];
-
-const OBJECTS_ACTIVITIES: Activity[] = [
-  {
-    id: 'l1-objects-1',
-    type: 'multiple_choice',
-    topic: 'objects',
-    level: 1,
-    title: 'Things Around Me',
-    questions: [
-      {
-        id: 'l1-o1-q1',
-        text: 'What do you use to write? ✏️',
-        imageHint: '✏️',
-        options: ['Pencil', 'Ruler', 'Eraser'],
-        correctAnswer: 'Pencil',
-        hint: 'You hold it and write with it!',
-      },
-      {
-        id: 'l1-o1-q2',
-        text: 'What do you read? 📚',
-        imageHint: '📚',
-        options: ['Chair', 'Book', 'Table'],
-        correctAnswer: 'Book',
-        hint: 'It has pages with words!',
-      },
-      {
-        id: 'l1-o1-q3',
-        text: 'What do you sleep on? 🛏️',
-        imageHint: '🛏️',
-        options: ['Floor', 'Chair', 'Bed'],
-        correctAnswer: 'Bed',
-        hint: 'You go here at night!',
-      },
-      {
-        id: 'l1-o1-q4',
-        text: 'What do you use to eat soup? 🥄',
-        imageHint: '🥄',
-        options: ['Fork', 'Knife', 'Spoon'],
-        correctAnswer: 'Spoon',
-        hint: 'It has a round bowl shape!',
-      },
-      {
-        id: 'l1-o1-q5',
-        text: 'What do you wear on your feet? 👟',
-        imageHint: '👟',
-        options: ['Hat', 'Gloves', 'Shoes'],
-        correctAnswer: 'Shoes',
-        hint: 'They protect your feet!',
-      },
-    ],
-  },
-];
-
-// ─── Level 2: Words and Short Phrases ─────────────────────
-
-const PHRASES_ACTIVITIES: Activity[] = [
-  {
-    id: 'l2-phrases-1',
-    type: 'multiple_choice',
-    topic: 'phrases',
-    level: 2,
-    title: 'I See...',
-    questions: [
-      {
-        id: 'l2-p1-q1',
-        text: 'Complete: "I see a ___." 🐱',
-        imageHint: '🐱',
-        options: ['I see a cat.', 'I see a dog.', 'I see a bird.'],
-        correctAnswer: 'I see a cat.',
-        hint: 'What animal is in the picture?',
-      },
-      {
-        id: 'l2-p1-q2',
-        text: 'Complete: "I like ___." 🍎',
-        imageHint: '🍎',
-        options: ['I like apples.', 'I like bananas.', 'I like grapes.'],
-        correctAnswer: 'I like apples.',
-        hint: 'The picture shows a red fruit!',
-      },
-      {
-        id: 'l2-p1-q3',
-        text: 'Which sentence is correct? 🔴',
-        imageHint: '🔴',
-        options: ['The ball is red.', 'The ball is blue.', 'The ball is green.'],
-        correctAnswer: 'The ball is red.',
-        hint: 'Look at the color of the ball!',
-      },
-      {
-        id: 'l2-p1-q4',
-        text: 'Complete: "This is my ___." 📖',
-        imageHint: '📖',
-        options: ['This is my book.', 'This is my cat.', 'This is my ball.'],
-        correctAnswer: 'This is my book.',
-        hint: 'What does the emoji show?',
-      },
-      {
-        id: 'l2-p1-q5',
-        text: 'Which phrase means you want something? 🙋',
-        imageHint: '🙋',
-        options: ['I want more!', 'I see a dog.', 'This is a chair.'],
-        correctAnswer: 'I want more!',
-        hint: 'Which says what you need?',
-      },
-    ],
-  },
-  {
-    id: 'l2-phrases-2',
-    type: 'multiple_choice',
-    topic: 'phrases',
-    level: 2,
-    title: 'Short Sentences',
-    questions: [
-      {
-        id: 'l2-p2-q1',
-        text: 'What does "She is happy" mean? 😊',
-        imageHint: '😊',
-        options: [
-          'A girl feels good.',
-          'A boy is sad.',
-          'Someone is tired.',
-        ],
-        correctAnswer: 'A girl feels good.',
-        hint: 'Think about who "she" is!',
-      },
-      {
-        id: 'l2-p2-q2',
-        text: 'Complete: "He ___ a ball." 🏀',
-        imageHint: '🏀',
-        options: ['He has a ball.', 'He sees a ball.', 'He is a ball.'],
-        correctAnswer: 'He has a ball.',
-        hint: 'Which verb makes sense?',
-      },
-      {
-        id: 'l2-p2-q3',
-        text: 'Which sentence uses "we"? 👫',
-        imageHint: '👫',
-        options: ['We play together.', 'I have a book.', 'She sees a cat.'],
-        correctAnswer: 'We play together.',
-        hint: '"We" means more than one person!',
-      },
-      {
-        id: 'l2-p2-q4',
-        text: 'Say hello politely: "Good ___!" ☀️',
-        imageHint: '☀️',
-        options: ['Good morning!', 'Good night!', 'Good dog!'],
-        correctAnswer: 'Good morning!',
-        hint: 'The sun is shining!',
-      },
-      {
-        id: 'l2-p2-q5',
-        text: 'Ask a friend to play: "Can you ___ with me?"',
-        imageHint: '🎮',
-        options: ['play', 'eat', 'sleep'],
-        correctAnswer: 'play',
-        hint: 'You want to have fun together!',
-      },
-    ],
-  },
-];
-
-// ─── Level 3: Simple Sentences and Conversations ──────────
-
-const SENTENCES_ACTIVITIES: Activity[] = [
-  {
-    id: 'l3-sentences-1',
-    type: 'multiple_choice',
-    topic: 'sentences',
-    level: 3,
-    title: 'Describing Things',
-    questions: [
-      {
-        id: 'l3-s1-q1',
-        text: 'Which sentence best describes this? 🐱💤',
-        imageHint: '🐱💤',
-        options: [
-          'The little cat is sleeping.',
-          'The big dog is running.',
-          'The bird is singing.',
-        ],
-        correctAnswer: 'The little cat is sleeping.',
-        hint: 'Look at what the cat is doing!',
-      },
-      {
-        id: 'l3-s1-q2',
-        text: 'What is a good question to ask a friend? 🤔',
-        imageHint: '🤔',
-        options: [
-          'What do you like to play?',
-          'The sky is blue.',
-          'I have a cat.',
-        ],
-        correctAnswer: 'What do you like to play?',
-        hint: 'Questions have a question mark!',
-      },
-      {
-        id: 'l3-s1-q3',
-        text: 'Complete: "I like playing with my ___ ball."',
-        imageHint: '🔴⚽',
-        options: [
-          'I like playing with my red ball.',
-          'I like playing with my big dog.',
-          'I like sleeping on my soft bed.',
-        ],
-        correctAnswer: 'I like playing with my red ball.',
-        hint: 'The red ball is in the picture!',
-      },
-      {
-        id: 'l3-s1-q4',
-        text: 'Which is a complete thought? 💭',
-        imageHint: '💭',
-        options: [
-          'My favorite color is yellow.',
-          'The running fast dog',
-          'Big and happy',
-        ],
-        correctAnswer: 'My favorite color is yellow.',
-        hint: 'A sentence has a subject and verb!',
-      },
-      {
-        id: 'l3-s1-q5',
-        text: 'How do you reply to "How are you?" 👋',
-        imageHint: '👋',
-        options: [
-          'I am doing great, thank you!',
-          'The cat is sleeping.',
-          'I have two apples.',
-        ],
-        correctAnswer: 'I am doing great, thank you!',
-        hint: 'Answer the question about yourself!',
-      },
-    ],
-  },
-  {
-    id: 'l3-conversation-1',
-    type: 'conversation_prompt',
-    topic: 'conversation',
-    level: 3,
-    title: 'Let\'s Chat!',
-    questions: [
-      {
-        id: 'l3-conv-q1',
-        text: 'Tell me: What is your favorite animal and why do you like it?',
-        imageHint: '🐾',
-        options: [
-          'I like dogs because they are friendly.',
-          'I like cats because they are cute.',
-          'I like birds because they can fly.',
-        ],
-        correctAnswer: 'I like',
-        hint: 'Any answer starting with "I like" is great!',
-      },
-      {
-        id: 'l3-conv-q2',
-        text: 'Describe your favorite place to play!',
-        imageHint: '🏡',
-        options: [
-          'I like playing in the park.',
-          'I like playing in my room.',
-          'I like playing in the garden.',
-        ],
-        correctAnswer: 'I like playing',
-        hint: 'Tell me about where you love to play!',
-      },
-      {
-        id: 'l3-conv-q3',
-        text: 'What did you do today?',
-        imageHint: '📅',
-        options: [
-          'Today I played and had fun.',
-          'Today I learned something new.',
-          'Today I ate yummy food.',
-        ],
-        correctAnswer: 'Today',
-        hint: 'Tell me about your day!',
-      },
-    ],
-  },
-];
-
-// ─── Activity Registry ─────────────────────────────────────
-
-export const ALL_ACTIVITIES: Activity[] = [
-  ...COLORS_ACTIVITIES,
-  ...ANIMALS_ACTIVITIES,
-  ...NUMBERS_ACTIVITIES,
-  ...FRUITS_ACTIVITIES,
-  ...FAMILY_ACTIVITIES,
-  ...OBJECTS_ACTIVITIES,
-  ...PHRASES_ACTIVITIES,
-  ...SENTENCES_ACTIVITIES,
-];
-
+/**
+ * Fetch activities for a specific age/skill level from SQLite table
+ */
 export function getActivitiesByLevel(level: LearningLevel): Activity[] {
-  return ALL_ACTIVITIES.filter((a) => a.level === level);
+  return getActivitiesByLevelFromDb(level);
 }
 
+/**
+ * Fetch activities for a specific curriculum topic from SQLite table
+ */
 export function getActivitiesByTopic(topic: LearningTopic): Activity[] {
-  return ALL_ACTIVITIES.filter((a) => a.topic === topic);
+  return getActivitiesByTopicFromDb(topic);
 }
 
+/**
+ * Fetch single activity by primary key ID from SQLite table
+ */
 export function getActivityById(id: string): Activity | undefined {
-  return ALL_ACTIVITIES.find((a) => a.id === id);
+  return getActivityByIdFromDb(id);
 }
 
+/**
+ * Determine the next progressive activity for a child from SQLite table
+ */
 export function getNextActivity(
   level: LearningLevel,
   completedIds: string[],
   preferredTopic?: LearningTopic
 ): Activity | undefined {
-  const available = ALL_ACTIVITIES.filter(
-    (a) => a.level === level && !completedIds.includes(a.id)
-  );
-
-  if (preferredTopic) {
-    const topicMatch = available.find((a) => a.topic === preferredTopic);
-    if (topicMatch) return topicMatch;
-  }
-
-  return available[0];
+  return getNextActivityFromDb(level, completedIds, preferredTopic);
 }
 
+/**
+ * Retrieve review activity for reinforcing weak topics from SQLite table
+ */
 export function getReviewActivity(
   level: LearningLevel,
   weakTopic: LearningTopic
 ): Activity | undefined {
-  return ALL_ACTIVITIES.find(
-    (a) => a.level === level && a.topic === weakTopic
-  );
+  return getReviewActivityFromDb(level, weakTopic);
 }
 
-// Topic display names
-export const TOPIC_LABELS: Record<LearningTopic, string> = {
-  colors: '🎨 Colors',
-  animals: '🐾 Animals',
-  numbers: '🔢 Numbers',
-  fruits: '🍎 Fruits',
-  family: '👨‍👩‍👧 Family',
-  objects: '🪑 Objects',
-  phrases: '💬 Phrases',
-  sentences: '📝 Sentences',
-  conversation: '🗣️ Conversation',
-};
-
-export const LEVEL_DESCRIPTIONS: Record<LearningLevel, string> = {
-  1: 'Words & Pictures',
-  2: 'Short Phrases',
-  3: 'Sentences & Chat',
-};
+export { TOPIC_LABELS, LEVEL_DESCRIPTIONS } from './types';

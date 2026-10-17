@@ -1,6 +1,6 @@
 // ============================================================
 // LittleTalk AI - Database Adapter Interface & Implementations
-// Supports Firebase Firestore & In-Memory Demo Fallback
+// Supports SQLite Relational Tables & Firebase Firestore
 // ============================================================
 import type { ChildProfile, SessionContext } from './types';
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
@@ -14,6 +14,15 @@ import {
   getDocs,
   type Firestore,
 } from 'firebase/firestore';
+import {
+  saveProfileToDb,
+  getProfileFromDb,
+  deleteProfileFromDb,
+  saveSessionToDb,
+  getSessionFromDb,
+  saveActivityProgressToDb,
+  getActivityProgressFromDb,
+} from './sqlite-db';
 
 export interface ActivityProgressData {
   activityId: string;
@@ -27,7 +36,7 @@ export interface ActivityProgressData {
 
 export interface DatabaseAdapter {
   isPersistent(): boolean;
-  getStorageType(): 'firestore' | 'in-memory-demo';
+  getStorageType(): 'firestore' | 'sqlite' | 'in-memory-demo';
   getProfile(profileId: string): Promise<ChildProfile | null>;
   saveProfile(profile: ChildProfile): Promise<void>;
   getSession(sessionId: string): Promise<SessionContext | null>;
@@ -44,7 +53,53 @@ export interface DatabaseAdapter {
   deleteProfileData(profileId: string): Promise<void>;
 }
 
-// ─── In-Memory Demo Adapter ────────────────────────────────
+// ─── SQLite Relational Database Adapter (Primary) ───────────
+export class SqliteDatabaseAdapter implements DatabaseAdapter {
+  isPersistent(): boolean {
+    return true;
+  }
+
+  getStorageType(): 'firestore' | 'sqlite' | 'in-memory-demo' {
+    return 'sqlite';
+  }
+
+  async getProfile(profileId: string): Promise<ChildProfile | null> {
+    return getProfileFromDb(profileId);
+  }
+
+  async saveProfile(profile: ChildProfile): Promise<void> {
+    saveProfileToDb(profile);
+  }
+
+  async getSession(sessionId: string): Promise<SessionContext | null> {
+    return getSessionFromDb(sessionId);
+  }
+
+  async saveSession(session: SessionContext): Promise<void> {
+    saveSessionToDb(session);
+  }
+
+  async saveActivityProgress(
+    profileId: string,
+    activityId: string,
+    data: ActivityProgressData
+  ): Promise<void> {
+    saveActivityProgressToDb(profileId, activityId, data);
+  }
+
+  async getActivityProgress(
+    profileId: string,
+    activityId: string
+  ): Promise<ActivityProgressData | null> {
+    return getActivityProgressFromDb(profileId, activityId);
+  }
+
+  async deleteProfileData(profileId: string): Promise<void> {
+    deleteProfileFromDb(profileId);
+  }
+}
+
+// ─── In-Memory Demo Adapter (Unit Testing Fallback) ─────────
 export class MemoryDatabaseAdapter implements DatabaseAdapter {
   private profiles = new Map<string, ChildProfile>();
   private sessions = new Map<string, SessionContext>();
@@ -54,7 +109,7 @@ export class MemoryDatabaseAdapter implements DatabaseAdapter {
     return false;
   }
 
-  getStorageType(): 'firestore' | 'in-memory-demo' {
+  getStorageType(): 'firestore' | 'sqlite' | 'in-memory-demo' {
     return 'in-memory-demo';
   }
 
@@ -97,7 +152,6 @@ export class MemoryDatabaseAdapter implements DatabaseAdapter {
   async deleteProfileData(profileId: string): Promise<void> {
     this.profiles.delete(profileId);
     this.activities.delete(profileId);
-    // Remove all associated sessions
     for (const [sId, sess] of this.sessions.entries()) {
       if (sess.profileId === profileId) {
         this.sessions.delete(sId);
@@ -105,7 +159,6 @@ export class MemoryDatabaseAdapter implements DatabaseAdapter {
     }
   }
 
-  // Helper for test reset
   clearAll(): void {
     this.profiles.clear();
     this.sessions.clear();
@@ -116,7 +169,7 @@ export class MemoryDatabaseAdapter implements DatabaseAdapter {
 // ─── Firebase Firestore Adapter ────────────────────────────
 export class FirestoreDatabaseAdapter implements DatabaseAdapter {
   private db: Firestore;
-  private memoryFallback = new MemoryDatabaseAdapter();
+  private localSqlite = new SqliteDatabaseAdapter();
 
   constructor() {
     const firebaseConfig = {
@@ -142,7 +195,7 @@ export class FirestoreDatabaseAdapter implements DatabaseAdapter {
     return true;
   }
 
-  getStorageType(): 'firestore' | 'in-memory-demo' {
+  getStorageType(): 'firestore' | 'sqlite' | 'in-memory-demo' {
     return 'firestore';
   }
 
@@ -151,19 +204,19 @@ export class FirestoreDatabaseAdapter implements DatabaseAdapter {
       const ref = doc(this.db, 'profiles', profileId);
       const snap = await getDoc(ref);
       if (!snap.exists()) {
-        return this.memoryFallback.getProfile(profileId);
+        return this.localSqlite.getProfile(profileId);
       }
       const data = snap.data() as ChildProfile;
-      await this.memoryFallback.saveProfile(data);
+      await this.localSqlite.saveProfile(data);
       return data;
     } catch (e) {
-      console.warn('Firestore getProfile fallback to memory:', e);
-      return this.memoryFallback.getProfile(profileId);
+      console.warn('Firestore getProfile fallback to SQLite:', e);
+      return this.localSqlite.getProfile(profileId);
     }
   }
 
   async saveProfile(profile: ChildProfile): Promise<void> {
-    await this.memoryFallback.saveProfile(profile);
+    await this.localSqlite.saveProfile(profile);
     try {
       const ref = doc(this.db, 'profiles', profile.profileId);
       await setDoc(ref, profile, { merge: true });
@@ -177,19 +230,19 @@ export class FirestoreDatabaseAdapter implements DatabaseAdapter {
       const ref = doc(this.db, 'sessions', sessionId);
       const snap = await getDoc(ref);
       if (!snap.exists()) {
-        return this.memoryFallback.getSession(sessionId);
+        return this.localSqlite.getSession(sessionId);
       }
       const data = snap.data() as SessionContext;
-      await this.memoryFallback.saveSession(data);
+      await this.localSqlite.saveSession(data);
       return data;
     } catch (e) {
-      console.warn('Firestore getSession fallback to memory:', e);
-      return this.memoryFallback.getSession(sessionId);
+      console.warn('Firestore getSession fallback to SQLite:', e);
+      return this.localSqlite.getSession(sessionId);
     }
   }
 
   async saveSession(session: SessionContext): Promise<void> {
-    await this.memoryFallback.saveSession(session);
+    await this.localSqlite.saveSession(session);
     try {
       const ref = doc(this.db, 'sessions', session.sessionId);
       await setDoc(ref, session, { merge: true });
@@ -203,7 +256,7 @@ export class FirestoreDatabaseAdapter implements DatabaseAdapter {
     activityId: string,
     data: ActivityProgressData
   ): Promise<void> {
-    await this.memoryFallback.saveActivityProgress(profileId, activityId, data);
+    await this.localSqlite.saveActivityProgress(profileId, activityId, data);
     try {
       const ref = doc(this.db, 'profiles', profileId, 'activities', activityId);
       await setDoc(ref, data, { merge: true });
@@ -220,16 +273,16 @@ export class FirestoreDatabaseAdapter implements DatabaseAdapter {
       const ref = doc(this.db, 'profiles', profileId, 'activities', activityId);
       const snap = await getDoc(ref);
       if (!snap.exists()) {
-        return this.memoryFallback.getActivityProgress(profileId, activityId);
+        return this.localSqlite.getActivityProgress(profileId, activityId);
       }
       return snap.data() as ActivityProgressData;
     } catch (e) {
-      return this.memoryFallback.getActivityProgress(profileId, activityId);
+      return this.localSqlite.getActivityProgress(profileId, activityId);
     }
   }
 
   async deleteProfileData(profileId: string): Promise<void> {
-    await this.memoryFallback.deleteProfileData(profileId);
+    await this.localSqlite.deleteProfileData(profileId);
     try {
       await deleteDoc(doc(this.db, 'profiles', profileId));
       const actRef = collection(this.db, 'profiles', profileId, 'activities');
@@ -263,13 +316,14 @@ export function getDatabaseAdapter(): DatabaseAdapter {
       adapterInstance = new FirestoreDatabaseAdapter();
       return adapterInstance;
     } catch (e) {
-      console.warn('Failed to initialize Firestore adapter, falling back to MemoryDbAdapter', e);
-      adapterInstance = new MemoryDatabaseAdapter();
+      console.warn('Failed to initialize Firestore adapter, falling back to SQLite', e);
+      adapterInstance = new SqliteDatabaseAdapter();
       return adapterInstance;
     }
   }
 
-  adapterInstance = new MemoryDatabaseAdapter();
+  // Default to persistent relational SQLite
+  adapterInstance = new SqliteDatabaseAdapter();
   return adapterInstance;
 }
 

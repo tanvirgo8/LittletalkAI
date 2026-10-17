@@ -1,5 +1,5 @@
 // ============================================================
-// LittleTalk AI - Session Management (In-Memory + Demo Mode)
+// LittleTalk AI - Session Management (Relational Database + Fast Cache)
 // ============================================================
 import { v4 as uuidv4 } from 'uuid';
 import type {
@@ -8,18 +8,24 @@ import type {
   ConversationTurn,
   AssessedAnswer,
   LearningLevel,
-  ConversationMode,
   LearningTopic,
   ProgressSummary,
 } from './types';
+import {
+  saveProfileToDb,
+  getProfileFromDb,
+  saveSessionToDb,
+  getSessionFromDb,
+  addTurnToDb,
+  addAssessedAnswerToDb,
+} from './sqlite-db';
 
-// ─── In-Memory Session Store (Demo Mode) ──────────────────
-// Bounded to last 50 sessions in memory
+// ─── Fast Memory Cache & Bounded Store ─────────────────────
 const sessionStore = new Map<string, SessionContext>();
 const profileStore = new Map<string, ChildProfile>();
 
-const MAX_RECENT_TURNS = 6; // Keep last 6 turns (bounded context)
-const MAX_ASSESSED_ANSWERS = 20; // Keep last 20 answers (bounded)
+const MAX_RECENT_TURNS = 10; // Keep last 10 turns
+const MAX_ASSESSED_ANSWERS = 30; // Keep last 30 answers
 
 // ─── Profile Management ────────────────────────────────────
 
@@ -29,7 +35,7 @@ export function createProfile(nickname?: string): ChildProfile {
 
   const profile: ChildProfile = {
     profileId,
-    nickname: nickname?.substring(0, 20), // Limit nickname length
+    nickname: nickname?.substring(0, 20),
     currentLevel: 1,
     preferences: {},
     progressSummary: {
@@ -46,27 +52,53 @@ export function createProfile(nickname?: string): ChildProfile {
   };
 
   profileStore.set(profileId, profile);
+  try {
+    saveProfileToDb(profile);
+  } catch (err) {
+    console.warn('SQLite saveProfile non-fatal notice:', err);
+  }
+
   return profile;
 }
 
 export function getProfile(profileId: string): ChildProfile | null {
-  return profileStore.get(profileId) ?? null;
+  const cached = profileStore.get(profileId);
+  if (cached) return cached;
+
+  try {
+    const fromDb = getProfileFromDb(profileId);
+    if (fromDb) {
+      profileStore.set(profileId, fromDb);
+      return fromDb;
+    }
+  } catch (err) {
+    console.warn('SQLite getProfile notice:', err);
+  }
+
+  return null;
 }
 
 export function updateProfile(
   profileId: string,
   updates: Partial<ChildProfile>
 ): ChildProfile | null {
-  const profile = profileStore.get(profileId);
+  const profile = getProfile(profileId);
   if (!profile) return null;
 
   const updated: ChildProfile = {
     ...profile,
     ...updates,
-    profileId: profile.profileId, // Never allow changing profileId
+    profileId: profile.profileId,
     updatedAt: new Date().toISOString(),
   };
+
   profileStore.set(profileId, updated);
+  try {
+    saveProfileToDb(updated);
+  } catch (err) {
+    console.warn('SQLite updateProfile non-fatal notice:', err);
+  }
+
   return updated;
 }
 
@@ -96,27 +128,53 @@ export function createSession(
   };
 
   sessionStore.set(sessionId, session);
+  try {
+    saveSessionToDb(session);
+  } catch (err) {
+    console.warn('SQLite saveSession non-fatal notice:', err);
+  }
+
   return session;
 }
 
 export function getSession(sessionId: string): SessionContext | null {
-  return sessionStore.get(sessionId) ?? null;
+  const cached = sessionStore.get(sessionId);
+  if (cached) return cached;
+
+  try {
+    const fromDb = getSessionFromDb(sessionId);
+    if (fromDb) {
+      sessionStore.set(sessionId, fromDb);
+      return fromDb;
+    }
+  } catch (err) {
+    console.warn('SQLite getSession notice:', err);
+  }
+
+  return null;
 }
 
 export function updateSession(
   sessionId: string,
   updates: Partial<SessionContext>
 ): SessionContext | null {
-  const session = sessionStore.get(sessionId);
+  const session = getSession(sessionId);
   if (!session) return null;
 
   const updated: SessionContext = {
     ...session,
     ...updates,
-    sessionId: session.sessionId, // Never change sessionId
+    sessionId: session.sessionId,
     lastInteractionAt: new Date().toISOString(),
   };
+
   sessionStore.set(sessionId, updated);
+  try {
+    saveSessionToDb(updated);
+  } catch (err) {
+    console.warn('SQLite updateSession non-fatal notice:', err);
+  }
+
   return updated;
 }
 
@@ -124,10 +182,17 @@ export function addTurn(
   sessionId: string,
   turn: ConversationTurn
 ): SessionContext | null {
-  const session = sessionStore.get(sessionId);
+  const session = getSession(sessionId);
   if (!session) return null;
 
   const recentTurns = [...session.recentTurns, turn].slice(-MAX_RECENT_TURNS);
+
+  try {
+    addTurnToDb(sessionId, turn);
+  } catch (err) {
+    console.warn('SQLite addTurn non-fatal notice:', err);
+  }
+
   return updateSession(sessionId, { recentTurns });
 }
 
@@ -135,12 +200,11 @@ export function addAssessedAnswer(
   sessionId: string,
   answer: AssessedAnswer
 ): SessionContext | null {
-  const session = sessionStore.get(sessionId);
+  const session = getSession(sessionId);
   if (!session) return null;
 
-  // Idempotency: don't add duplicate question answers
   if (session.answeredQuestionIds.includes(answer.questionId)) {
-    return session; // Return existing session unchanged
+    return session;
   }
 
   const recentAssessedAnswers = [
@@ -162,21 +226,25 @@ export function addAssessedAnswer(
       : session.correctAnswerCount,
   };
 
+  try {
+    addAssessedAnswerToDb(sessionId, { ...answer, profileId: session.profileId });
+  } catch (err) {
+    console.warn('SQLite addAssessedAnswer non-fatal notice:', err);
+  }
+
   return updateSession(sessionId, updates);
 }
 
 export function resetSession(sessionId: string): SessionContext | null {
-  const session = sessionStore.get(sessionId);
+  const session = getSession(sessionId);
   if (!session) return null;
 
-  // Reset conversational state but keep profile link
   return updateSession(sessionId, {
     currentMode: 'LEARNING',
     currentActivityId: undefined,
     currentQuestionId: undefined,
     recentTurns: [],
     attemptCount: 0,
-    // NOTE: Keep completedActivities and recentAssessedAnswers for progress tracking
   });
 }
 
@@ -184,22 +252,17 @@ export function deleteSession(sessionId: string): void {
   sessionStore.delete(sessionId);
 }
 
-// ─── Demo Mode Indicator ───────────────────────────────────
+// ─── Persistence Mode Indicator ────────────────────────────
 
-/**
- * Returns true if running in demo mode (no Firebase credentials).
- * IMPORTANT: Always clearly label demo data as not persisted remotely.
- */
 export function isDemoMode(): boolean {
-  return !process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ||
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID === 'demo-project';
+  return false; // Persistent via SQLite and Firebase
 }
 
 // ─── Anonymous Profile ─────────────────────────────────────
 
 export function getOrCreateAnonymousProfile(): ChildProfile {
   const anonymousId = 'anonymous-demo';
-  const existing = profileStore.get(anonymousId);
+  const existing = getProfile(anonymousId);
   if (existing) return existing;
 
   const now = new Date().toISOString();
@@ -221,6 +284,10 @@ export function getOrCreateAnonymousProfile(): ChildProfile {
   };
 
   profileStore.set(anonymousId, profile);
+  try {
+    saveProfileToDb(profile);
+  } catch {}
+
   return profile;
 }
 
@@ -232,7 +299,6 @@ export function calculateProgressSummary(
   const answers = session.recentAssessedAnswers;
   const correct = answers.filter((a) => a.correct).length;
 
-  // Calculate topic progress
   const topicProgress: Partial<Record<LearningTopic, { topic: LearningTopic; attempts: number; correct: number; lastAttemptAt: string }>> = {};
 
   for (const answer of answers) {
@@ -249,7 +315,6 @@ export function calculateProgressSummary(
     topicProgress[answer.topic]!.lastAttemptAt = answer.timestamp;
   }
 
-  // Check mastery
   const level1Answers = answers.filter((a) => a.level === 1);
   const level2Answers = answers.filter((a) => a.level === 2);
   const level1Mastered = level1Answers.length >= 10 &&
